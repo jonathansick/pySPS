@@ -23,7 +23,7 @@ class ParameterSet(object):
     def command(self):
         """Write the string for this paramter set."""
         dt = [("compute_vega_mags","%i"),("dust_type","%i"),("imf_type",'%i'),
-                ("isoc_type",'%s'),("redshift_colors","%s"),
+                ("isoc_type",'%s'),("redshift_colors","%i"),
                 ("time_res_incr","%i"),("zred","%.2f"),("zmet","%i"),
                 ("sfh","%i"),("tau","%.10f"),("const","%.4f"),
                 ("sf_start","%.2f"),("tage","%.4f"),("fburst","%.4f"),
