@@ -12,7 +12,7 @@ class ParameterSet(object):
                 "imf2":2.3, "imf3":2.3, "vdmc":0.08, "mdave":0.5,
                 "dust_tesc":7., "dust1":0., "dust2":0., "dust_clumps":-99.,
                 "frac_nodust":0., "dust_index":-0.7, "mwr":3.1,
-                "uvb":1., "wgp1":1, "wgp2":1 "wgp3":0, "dell":0.,
+                "uvb":1., "wgp1":1, "wgp2":1, "wgp3":0, "dell":0.,
                 "delt":0., "sbss":0., "fbhb":0, "pagb":1.}
         keys = self.p.keys()
         # Update values with user's arguments
@@ -35,5 +35,20 @@ class ParameterSet(object):
                 ("wgp1","%i"),("wgp2","%i"),("wgp3","%i"),("dell","%.2f"),
                 ("delt","%.2f"),("sbss","%.2f"),("fbhb","%.2f"),
                 ("pagb","%.2f")]
-        cmd = self.name + " " + " ".join([s % self.p[k] for (s,k) in dt])
+        cmd = self.name + " " + " ".join([s % self.p[k] for (k,s) in dt])
         return cmd
+
+def test():
+    """Create a test model batch"""
+    taus = [0.5,1.,2.]
+    cmds = []
+    for i, tau in enumerate(taus):
+        modelName = "model%i" % i
+        pset = ParameterSet(modelName, tau=tau)
+        cmds.append(pset.command())
+    f = open("test_sequence.txt",'w')
+    f.write("\n".join(cmds)+"\n")
+    f.close()
+
+if __name__ == '__main__':
+    test()
