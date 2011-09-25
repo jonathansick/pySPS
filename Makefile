@@ -3,26 +3,27 @@ F90FLAGS = -O3 -march=native
 
 PROGS = fspsq
 
-COMMON = $(SPS_HOME)src/sps_vars.o $(SPS_HOME)src/nrtype.o \
-$(SPS_HOME)src/sps_utils.o $(SPS_HOME)src/nr.o $(SPS_HOME)src/nrutil.o \
-$(SPS_HOME)src/compsp.o $(SPS_HOME)src/ssp_gen.o $(SPS_HOME)src/getmags.o \
-$(SPS_HOME)src/gasdev.o $(SPS_HOME)src/spline.o $(SPS_HOME)src/splint.o \
-$(SPS_HOME)src/ran.o $(SPS_HOME)src/ran_state.o \
-$(SPS_HOME)src/locate.o $(SPS_HOME)src/qromb.o $(SPS_HOME)src/polint.o \
-$(SPS_HOME)src/trapzd.o $(SPS_HOME)src/tridag.o $(SPS_HOME)src/sps_setup.o \
-$(SPS_HOME)src/ran2.o $(SPS_HOME)src/pz_convol.o $(SPS_HOME)src/get_tuniv.o \
-$(SPS_HOME)src/imf.o $(SPS_HOME)src/imf_weight.o $(SPS_HOME)src/add_dust.o \
-$(SPS_HOME)src/getspec.o $(SPS_HOME)src/add_bs.o $(SPS_HOME)src/mod_hb.o \
-$(SPS_HOME)src/add_remnants.o $(SPS_HOME)src/getindx.o \
-$(SPS_HOME)src/velbroad.o $(SPS_HOME)src/mod_agb.o \
-$(SPS_HOME)src/write_isochrone.o $(SPS_HOME)src/sfhstat.o
+COMMON = sps_vars.o nrtype.o sps_utils.o nr.o nrutil.o compsp.o \
+ssp_gen.o getmags.o gasdev.o spline.o splint.o ran.o ran_state.o \
+locate.o qromb.o polint.o trapzd.o tridag.o sps_setup.o ran2.o \
+pz_convol.o get_tuniv.o imf.o imf_weight.o add_dust.o getspec.o \
+add_bs.o mod_hb.o add_remnants.o getindx.o velbroad.o mod_agb.o \
+write_isochrone.o sfhstat.o
 
 all: $(PROGS)
 
-fspsq: fspsq.o fspsq.f90
+clean:
+	rm -rf *.o *.mod *.MOD *~
+
+fspsq: fspsq.o $(COMMON)
 	$(F90) -o fspsq fspsq.o $(COMMON)
+
+fspsq.o: sps_vars.o nrtype.o nr.o sps_utils.o
+
+sps_utils.o: nrutil.o nr.o sps_vars.o
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -o $@ -c $<
 
-
+%.o: nr/%.f90
+	$(F90) $(F90FLAGS) -o $@ -c $<
