@@ -1,4 +1,12 @@
 """Generates input files for fspsq."""
+import socket
+import os
+import subprocess
+import multiprocessing
+import datetime
+
+import pytz
+import pymongo
 
 class FSPSLibrary(object):
     """For building/accessing a library of FSPS stellar population models.
@@ -12,6 +20,8 @@ class FSPSLibrary(object):
         self.dbname = dbname
         
         connection = pymongo.Connection()
+        self.host = connection.host
+        self.port = connection.port
         self.db = connection[self.dbname]
         self.collection = self.db[self.libname]
     
@@ -33,8 +43,15 @@ class FSPSLibrary(object):
             Maximum number of jobs that can be given to a single
             `fspsq` process.
         """
-        # Group models of a single metallicity together
-        pass
+        fspsqPath = "echo"
+        pool = multiprocessing.Pool(processes=nThreads)
+        args = []
+        for i in range(nThreads):
+            processorName = "processor-%i" % i
+            commandPath = processorPath+".txt"
+            args.append((self.libname, self.dbname, self.host, self.port,
+                maxN, fspsqPath, commandPath))
+        pool.map(args, run_fspsq)
     
     def reset(self):
         """Drop (delete) the library.
@@ -49,6 +66,46 @@ class FSPSLibrary(object):
         """Delete a model, by name, if it exists."""
         if self.collection.find_one({"_id": modelName}) is not None:
             self.collection.remove({"_id": modelName})
+
+def run_fspsq(args):
+    """A process for running fsps jobs."""
+    libname, dbname, host, port, maxN, fspsqPath, commandPath = args
+    thisHost = socket.gethostname() # hostname of current process
+    
+    # Connect to the library in MongoDB
+    connection = pymongo.connection(host=host, port=port)
+    db = connection['dbname']
+    collection = db['libname']
+    
+    # Each queue run has a single metallicity so that FSPS needs only to
+    # load one metallicity.
+    zmets = collection.distinct("pset.zmet")
+    for zmet in zmets:
+        while True:
+            psets = []
+            now = datetime.datetime.utcnow()
+            now = now.replace(tzinfo=pytz.utc)
+            while len(psets) <= maxN:
+                doc = collection.find_and_modify(
+                    query={"pset.zmet": zmet,
+                           "compute_complete": False,
+                           "compute_started": False},
+                    update={"$set": {"compute_started": True,
+                                     "compute_date": now,
+                                     "compute_host": thisHost}},
+                    fields=["_id", "pset"])
+                if doc is None: break # no available models
+                modelName = str(doc['_id'])
+                pset = ParameterSet(modelName, **doc['pset'])
+                psets.append(pset)
+            if len(psets) == 0: break # empty job queue
+            # Startup a computation: write command file and start fspsq
+            cmdTxt = "\n".join([p.command() for p in psets])+"\n"
+            if os.path.exists(commandPath): os.remove(commandPath)
+            f = open(commandPath, 'w')
+            f.write(cmdTxt)
+            f.close()
+            subprocess.call("%s %s" % (fspsqPath, commandPath), shell=True)
 
 class TestSSPLibrary(FSPSLibrary):
     """An SSP library with three metallicities."""
