@@ -1,5 +1,68 @@
 """Generates input files for fspsq."""
 
+class FSPSLibrary(object):
+    """For building/accessing a library of FSPS stellar population models.
+    
+    FSPSLibrary is itself an interface for the PyMongo database that stores
+    model parameters and realizations from the FSPS code.
+    """
+    def __init__(self, libname, dbname="fsps"):
+        super(FSPSLibrary, self).__init__()
+        self.libname = libname
+        self.dbname = dbname
+        
+        connection = pymongo.Connection()
+        self.db = connection[self.dbname]
+        self.collection = self.db[self.libname]
+    
+    def register_pset(self, pset):
+        """Adds a ParameterSet to the collection of model definitions."""
+        self.remove_existing_model(pset.name)
+        doc = {"_id": pset.name, "pset": pset.get_doc()
+            "compute_started": False, "compute_complete": False}
+    
+    def compute_models(self, nThreads=1, maxN=10):
+        """Fire up FSPS to generate SP models.
+        
+        Parameters
+        ----------
+        
+        nThreads : int, optional
+            Number of processes to be spawned, for multiprocessing
+        maxN : int, optional
+            Maximum number of jobs that can be given to a single
+            `fspsq` process.
+        """
+        # Group models of a single metallicity together
+        pass
+    
+    def reset(self):
+        """Drop (delete) the library.
+        
+        The collection member is reinstantiated. This allows the collection
+        to be freshly re-populated with models.
+        """
+        self.db.drop(self.libname)
+        self.collection = self.db[self.libname]
+    
+    def remove_existing_model(self, modelName):
+        """Delete a model, by name, if it exists."""
+        if self.collection.find_one({"_id": modelName}) is not None:
+            self.collection.remove({"_id": modelName})
+
+class TestSSPLibrary(FSPSLibrary):
+    """An SSP library with three metallicities."""
+    def __init__(self, libname, **kwargs):
+        super(TestSSPLibrary, self).__init__(libname, **kwargs)
+    
+    def generate_grid(self):
+        """Create the grid of SSP models."""
+        taus = [0.5,1.,2.]
+        for i, tau in enumerate(taus):
+            modelName = "model%i" % i
+            pset = ParameterSet(modelName, tau=tau)
+            self.register_pset(pset)
+
 class ParameterSet(object):
     """An input parameter set for a FSPS model run."""
     def __init__(self, name, **kwargs):
@@ -14,10 +77,10 @@ class ParameterSet(object):
                 "frac_nodust":0., "dust_index":-0.7, "mwr":3.1,
                 "uvb":1., "wgp1":1, "wgp2":1, "wgp3":0, "dell":0.,
                 "delt":0., "sbss":0., "fbhb":0, "pagb":1.}
-        keys = self.p.keys()
+        self.knownParameters = self.p.keys()
         # Update values with user's arguments
         for k, v in kwargs.iteritems():
-            if k in keys:
+            if k in self.knownParameters:
                 self.p[k] = v
     
     def command(self):
@@ -40,15 +103,7 @@ class ParameterSet(object):
 
 def test():
     """Create a test model batch"""
-    taus = [0.5,1.,2.]
-    cmds = []
-    for i, tau in enumerate(taus):
-        modelName = "model%i" % i
-        pset = ParameterSet(modelName, tau=tau)
-        cmds.append(pset.command())
-    f = open("test_sequence.txt",'w')
-    f.write("\n".join(cmds)+"\n")
-    f.close()
+    pass
 
 if __name__ == '__main__':
     test()
