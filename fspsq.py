@@ -28,8 +28,9 @@ class FSPSLibrary(object):
     def register_pset(self, pset):
         """Adds a ParameterSet to the collection of model definitions."""
         self.remove_existing_model(pset.name)
-        doc = {"_id": pset.name, "pset": pset.get_doc()
+        doc = {"_id": pset.name, "pset": pset.get_doc(),
             "compute_started": False, "compute_complete": False}
+        self.collection.insert(doc)
     
     def compute_models(self, nThreads=1, maxN=10):
         """Fire up FSPS to generate SP models.
@@ -38,20 +39,25 @@ class FSPSLibrary(object):
         ----------
         
         nThreads : int, optional
-            Number of processes to be spawned, for multiprocessing
+            Number of processes to be spawned, for multiprocessing. If set
+            to `1`, multiprocessing is not used; useful for debugging.
         maxN : int, optional
             Maximum number of jobs that can be given to a single
             `fspsq` process.
         """
-        fspsqPath = "echo"
+        fspsqPath = "echo" # debug
         pool = multiprocessing.Pool(processes=nThreads)
         args = []
         for i in range(nThreads):
             processorName = "processor-%i" % i
-            commandPath = processorPath+".txt"
+            commandPath = processorName+".txt"
             args.append((self.libname, self.dbname, self.host, self.port,
                 maxN, fspsqPath, commandPath))
-        pool.map(args, run_fspsq)
+        print args
+        if nThreads > 1:
+            pool.map(run_fspsq, args)
+        else:
+            map(run_fspsq, args)
     
     def reset(self):
         """Drop (delete) the library.
@@ -59,7 +65,7 @@ class FSPSLibrary(object):
         The collection member is reinstantiated. This allows the collection
         to be freshly re-populated with models.
         """
-        self.db.drop(self.libname)
+        self.db.drop_collection(self.libname)
         self.collection = self.db[self.libname]
     
     def remove_existing_model(self, modelName):
@@ -69,13 +75,14 @@ class FSPSLibrary(object):
 
 def run_fspsq(args):
     """A process for running fsps jobs."""
+    print "hello"
     libname, dbname, host, port, maxN, fspsqPath, commandPath = args
     thisHost = socket.gethostname() # hostname of current process
     
     # Connect to the library in MongoDB
-    connection = pymongo.connection(host=host, port=port)
-    db = connection['dbname']
-    collection = db['libname']
+    connection = pymongo.Connection(host=host, port=port)
+    db = connection[dbname]
+    collection = db[libname]
     
     # Each queue run has a single metallicity so that FSPS needs only to
     # load one metallicity.
@@ -92,8 +99,7 @@ def run_fspsq(args):
                            "compute_started": False},
                     update={"$set": {"compute_started": True,
                                      "compute_date": now,
-                                     "compute_host": thisHost}},
-                    fields=["_id", "pset"])
+                                     "compute_host": thisHost}},)
                 if doc is None: break # no available models
                 modelName = str(doc['_id'])
                 pset = ParameterSet(modelName, **doc['pset'])
@@ -107,18 +113,6 @@ def run_fspsq(args):
             f.close()
             subprocess.call("%s %s" % (fspsqPath, commandPath), shell=True)
 
-class TestSSPLibrary(FSPSLibrary):
-    """An SSP library with three metallicities."""
-    def __init__(self, libname, **kwargs):
-        super(TestSSPLibrary, self).__init__(libname, **kwargs)
-    
-    def generate_grid(self):
-        """Create the grid of SSP models."""
-        taus = [0.5,1.,2.]
-        for i, tau in enumerate(taus):
-            modelName = "model%i" % i
-            pset = ParameterSet(modelName, tau=tau)
-            self.register_pset(pset)
 
 class ParameterSet(object):
     """An input parameter set for a FSPS model run."""
@@ -157,10 +151,10 @@ class ParameterSet(object):
                 ("pagb","%.2f")]
         cmd = self.name + " " + " ".join([s % self.p[k] for (k,s) in dt])
         return cmd
-
-def test():
-    """Create a test model batch"""
-    pass
+    
+    def get_doc(self):
+        """Returns the document dictionary to insert in MongoDB."""
+        return self.p
 
 if __name__ == '__main__':
-    test()
+    pass
