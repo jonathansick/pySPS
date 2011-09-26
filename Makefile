@@ -25,5 +25,8 @@ sps_utils.o: nrutil.o nr.o sps_vars.o
 %.o: %.f90
 	$(F90) $(F90FLAGS) -o $@ -c $<
 
-%.o: nr/%.f90
+%.o: fsps/%.f90
+	$(F90) $(F90FLAGS) -o $@ -c $<
+
+%.o: fsps/nr/%.f90
 	$(F90) $(F90FLAGS) -o $@ -c $<
