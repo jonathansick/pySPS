@@ -45,8 +45,8 @@ class FSPSLibrary(object):
             Maximum number of jobs that can be given to a single
             `fspsq` process.
         """
-        fspsqPath = "echo" # debug
-        pool = multiprocessing.Pool(processes=nThreads)
+        fspsqPath = os.path.join(os.getcwd(), "fspsq") # echo for debug
+        # fspsqPath = "echo"
         args = []
         for i in range(nThreads):
             processorName = "processor-%i" % i
@@ -55,6 +55,7 @@ class FSPSLibrary(object):
                 maxN, fspsqPath, commandPath))
         print args
         if nThreads > 1:
+            pool = multiprocessing.Pool(processes=nThreads)
             pool.map(run_fspsq, args)
         else:
             map(run_fspsq, args)
@@ -84,22 +85,22 @@ def run_fspsq(args):
     db = connection[dbname]
     collection = db[libname]
     
-    # Each queue run has a single metallicity so that FSPS needs only to
-    # load one metallicity.
-    zmets = collection.distinct("pset.zmet")
-    for zmet in zmets:
+    commonVarSets = _make_common_var_sets(collection)
+    print "commonVarSets:", commonVarSets
+    for varSet in commonVarSets:
         while True:
             psets = []
             now = datetime.datetime.utcnow()
             now = now.replace(tzinfo=pytz.utc)
             while len(psets) <= maxN:
-                doc = collection.find_and_modify(
-                    query={"pset.zmet": zmet,
-                           "compute_complete": False,
-                           "compute_started": False},
+                q = {"compute_complete": False, "compute_started": False}
+                q.update(varSet)
+                print "q", q
+                doc = collection.find_and_modify(query=q,
                     update={"$set": {"compute_started": True,
                                      "compute_date": now,
                                      "compute_host": thisHost}},)
+                print "doc", doc
                 if doc is None: break # no available models
                 modelName = str(doc['_id'])
                 pset = ParameterSet(modelName, **doc['pset'])
@@ -111,8 +112,55 @@ def run_fspsq(args):
             f = open(commandPath, 'w')
             f.write(cmdTxt)
             f.close()
-            subprocess.call("%s %s" % (fspsqPath, commandPath), shell=True)
+            shellCmd = _make_shell_command(fspsqPath, commandPath, varSet)
+            print "cmd::", shellCmd
+            subprocess.call(shellCmd, shell=True)
 
+def _make_common_var_sets(c):
+    """Make a list of common variable setups.
+    
+    .. note:: This merely lists all *possible* combinations of common variable
+       configurations. There is not guarantee that there are models needing
+       computation for each configuration set.
+    
+    Parameters
+    ----------
+    
+    c : pymongo.Collection instance
+    
+    Returns
+    -------
+    
+    List of dictionaries. Each dictionary has keys representing common
+    variables: sfh, zmet, dust_type, imf_type, compute_vega_mags, redshift_colors
+    """
+    params = ['sfh', 'zmet', 'dust_type', 'imf_type',
+        'compute_vega_mags', 'redshift_colors']
+    possibleValues = {}
+    for param in params:
+        possibleValues[param] = c.distinct("pset."+param)
+    groups = []
+    for isfh in possibleValues['sfh']:
+        for izmet in possibleValues['zmet']:
+            for idust_type in possibleValues['dust_type']:
+                for iimf_type in possibleValues['imf_type']:
+                    for ivega in possibleValues['compute_vega_mags']:
+                        for iredshift in possibleValues['redshift_colors']:
+                            groups.append({"pset.sfh":isfh,"pset.zmet":izmet,
+                                "pset.dust_type":idust_type,"pset.imf_type":iimf_type,
+                                "pset.compute_vega_mags":ivega,
+                                "pset.redshift_colors":iredshift})
+    return groups
+
+def _make_shell_command(fspsqPath, commandFilePath, varSet):
+    """Crafts the command for running `fspsq`, returning a string."""
+    params = ['sfh', 'zmet', 'dust_type', 'imf_type',
+        'compute_vega_mags', 'redshift_colors']
+    cmd = "%s %s %i %i %i %i %i %i" % (fspsqPath, commandFilePath,
+        varSet['pset.sfh'], varSet['pset.zmet'], varSet['pset.dust_type'],
+        varSet['pset.imf_type'], varSet['pset.compute_vega_mags'],
+        varSet['pset.redshift_colors'])
+    return cmd
 
 class ParameterSet(object):
     """An input parameter set for a FSPS model run."""
@@ -136,10 +184,8 @@ class ParameterSet(object):
     
     def command(self):
         """Write the string for this paramter set."""
-        dt = [("compute_vega_mags","%i"),("dust_type","%i"),("imf_type",'%i'),
-                ("isoc_type",'%s'),("redshift_colors","%i"),
-                ("time_res_incr","%i"),("zred","%.2f"),("zmet","%i"),
-                ("sfh","%i"),("tau","%.10f"),("const","%.4f"),
+        # These are pset variables, (aside from sfh and zmet)
+        dt = [("zred","%.2f"),("tau","%.10f"),("const","%.4f"),
                 ("sf_start","%.2f"),("tage","%.4f"),("fburst","%.4f"),
                 ("tburst","%.4f"),("imf1","%.2f"),("imf2","%.2f"),
                 ("imf3","%.2f"),("vdmc","%.2f"),("mdave","%.1f"),

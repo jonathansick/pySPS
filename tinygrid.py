@@ -7,7 +7,7 @@ def main():
     tinyLibrary = TinySSPGrid("tinyssp", dbname="fsps")
     tinyLibrary.reset()
     tinyLibrary.generate_grid()
-    tinyLibrary.compute_models(nThreads=2)
+    tinyLibrary.compute_models(nThreads=1)
 
 class TinySSPGrid(FSPSLibrary):
     """A small grid SSPs for three metallicities."""

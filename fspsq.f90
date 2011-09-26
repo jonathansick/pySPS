@@ -11,6 +11,8 @@ program fspsq
     character(len=64) :: input_path
     integer :: imodel
     character(len=256) :: model_name, output_path
+    character(len=1) :: s_sfh, s_dust_type, s_imf_type, s_vega, s_redshift
+    character(len=2) :: s_zmet
     ! character(len=4) :: isoc_type
     ! integer :: compute_vega_mags, dust_type, imf_type, redshift_colors
     ! integer :: time_res_incr, zmet, sfh
@@ -19,10 +21,6 @@ program fspsq
     ! real :: frac_nodust, dust_index, mwr, uvb
     ! integer :: wgp1, wgp2, wgp3
     ! real :: dell, delt, sbss, fbhb, pagb
-    
-    ! These are parameters that shouldn't be read:
-    integer :: fake_time_res_incr
-    character(len=4) :: fake_isoc_type
     
     !define variable for SSP spectrum
     REAL(SP), DIMENSION(ntfull,nspec)  :: spec_ssp
@@ -39,36 +37,57 @@ program fspsq
     ! with no dust, and the 'default' assumptions regarding the 
     ! locations of the isochrones
 
-    imf_type  = 1             !define the IMF (1=Chabrier 2003)
-                              !see sps_vars.f90 for details of this var
-    pset%zmet = 20            !define the metallicity (see the manual)
-                              !20 = solar metallacity
+    ! imf_type  = 1             !define the IMF (1=Chabrier 2003)
+    !                           !see sps_vars.f90 for details of this var
+    ! pset%zmet = 20            !define the metallicity (see the manual)
+    !                           !20 = solar metallacity
+    ! pset%sfh = 0
+    ! pset%tau = 1.0
+    
+    ! Gather common settings and model spec file from command line
+    call get_command_argument(1, input_path)
+    call get_command_argument(2, s_sfh)
+    call get_command_argument(3, s_zmet)
+    call get_command_argument(4, s_dust_type) ! sps_vars
+    call get_command_argument(5, s_imf_type) ! sps_vars
+    call get_command_argument(6, s_vega) ! sps_vars
+    call get_command_argument(7, s_redshift) ! sps_vars
+    ! Cast command line parameters to integers
+    read (s_sfh,*) pset%sfh
+    read (s_zmet,*) pset%zmet
+    read (s_dust_type,*) dust_type
+    read (s_imf_type,*) imf_type
+    read (s_vega,*) compute_vega_mags
+    read (s_redshift,*) redshift_colors
     
     ! read in the isochrones and spectral libraries
     CALL SPS_SETUP(pset%zmet)
-
-    call get_command_argument(1, input_path)
-    write (*,*) trim(input_path)
-    imodel = 0
-    open(15,file=trim(input_path),status='OLD')
-        read(15,*) model_name, compute_vega_mags, dust_type, imf_type, &
-            fake_isoc_type, redshift_colors, fake_time_res_incr, pset%zred, &
-            pset%zmet, &
-            pset%sfh, pset%tau, pset%const, pset%sf_start, pset%tage, &
-            pset%fburst, pset%tburst, pset%imf1, pset%imf2, pset%imf3, &
-            pset%vdmc, pset%mdave, pset%dust_tesc, pset%dust1, pset%dust2, &
-            pset%dust_clumps, pset%frac_nodust, pset%dust_index, pset%mwr, &
-            pset%uvb, pset%wgp1, pset%wgp2, pset%wgp3, pset%dell,pset%delt, &
-            pset%sbss, pset%fbhb, pset%pagb
-        write (*,*) trim(model_name), pset%tau
-        !compute the SSP
-        CALL SSP_GEN(pset,mass_ssp,lbol_ssp,spec_ssp)
-        !compute mags and write out mags and spec for SSP
-        output_path = trim(model_name)//'.out'
-        CALL COMPSP(3,1,output_path,mass_ssp,lbol_ssp,spec_ssp,pset,ocompsp)
-        imodel = imodel + 1
-    close(15)
-    write (*,*) imodel, ' model(s) processed'
+    CALL SSP_GEN(pset,mass_ssp,lbol_ssp,spec_ssp)
+    output_path = 'fspsqtest.out'
+    CALL COMPSP(3,1,output_path,mass_ssp,lbol_ssp,spec_ssp,pset,ocompsp)
+    
+    
+    ! write (*,*) trim(input_path)
+    ! imodel = 0
+    ! open(15,file=trim(input_path),status='OLD')
+    !     read(15,*) model_name, compute_vega_mags, dust_type, imf_type, &
+    !         fake_isoc_type, redshift_colors, fake_time_res_incr, pset%zred, &
+    !         pset%zmet, &
+    !         pset%sfh, pset%tau, pset%const, pset%sf_start, pset%tage, &
+    !         pset%fburst, pset%tburst, pset%imf1, pset%imf2, pset%imf3, &
+    !         pset%vdmc, pset%mdave, pset%dust_tesc, pset%dust1, pset%dust2, &
+    !         pset%dust_clumps, pset%frac_nodust, pset%dust_index, pset%mwr, &
+    !         pset%uvb, pset%wgp1, pset%wgp2, pset%wgp3, pset%dell,pset%delt, &
+    !         pset%sbss, pset%fbhb, pset%pagb
+    !     write (*,*) trim(model_name), pset%tau
+    !     !compute the SSP
+    !     CALL SSP_GEN(pset,mass_ssp,lbol_ssp,spec_ssp)
+    !     !compute mags and write out mags and spec for SSP
+    !     output_path = trim(model_name)//'.out'
+    !     CALL COMPSP(3,1,output_path,mass_ssp,lbol_ssp,spec_ssp,pset,ocompsp)
+    !     imodel = imodel + 1
+    ! close(15)
+    ! write (*,*) imodel, ' model(s) processed'
     stop
 
 30  write (*,*) 'I/O error occurred'
