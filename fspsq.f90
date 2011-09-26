@@ -10,7 +10,7 @@ program fspsq
 
     character(len=64) :: input_path
     integer :: imodel
-    character(len=256) :: model_name
+    character(len=256) :: model_name, output_path
     ! character(len=4) :: isoc_type
     ! integer :: compute_vega_mags, dust_type, imf_type, redshift_colors
     ! integer :: time_res_incr, zmet, sfh
@@ -61,6 +61,11 @@ program fspsq
             pset%uvb, pset%wgp1, pset%wgp2, pset%wgp3, pset%dell,pset%delt, &
             pset%sbss, pset%fbhb, pset%pagb
         write (*,*) trim(model_name), pset%tau
+        !compute the SSP
+        CALL SSP_GEN(pset,mass_ssp,lbol_ssp,spec_ssp)
+        !compute mags and write out mags and spec for SSP
+        output_path = trim(model_name)//'.out'
+        CALL COMPSP(3,1,output_path,mass_ssp,lbol_ssp,spec_ssp,pset,ocompsp)
         imodel = imodel + 1
     close(15)
     write (*,*) imodel, ' model(s) processed'
