@@ -188,7 +188,15 @@ def _gather_fsps_outputs(c, modelNames):
     for modelName in modelNames:
         magPath = os.path.join(outputDir, modelName+".out.mags")
         magSpec = os.path.join(outputDir, modelName+".out.spec")
-        npdata = ingest_output(magPath, magSpec)
+        print "ingesting", modelName
+        try:
+            npdata = ingest_output(magPath, magSpec)
+        except:
+            # Some exception in parsing the text files; skip the output
+            c.update({"_id": modelName}, {"$set": {"compute_complete": True,
+                "ingest_fail": True}})
+            print "\t", modelName, "ingest fail"
+            continue
         npDataSmall = npdata[:1]
         c.update({"_id": modelName}, {"$set": {"compute_complete": True}})
         binData = Binary(pickle.dumps(npdata,-1))
