@@ -79,6 +79,9 @@ class FSPSLibrary(object):
         """Delete a model, by name, if it exists."""
         if self.collection.find_one({"_id": modelName}) is not None:
             self.collection.remove({"_id": modelName})
+    
+    def count_models(self):
+        return self.collection.find({}).count()
 
 def run_fspsq(args):
     """A process for running fsps jobs."""
@@ -121,7 +124,8 @@ def run_fspsq(args):
             f = open(commandPath, 'w')
             f.write(cmdTxt)
             f.close()
-            shellCmd = _make_shell_command(fspsqPath, commandPath, varSet)
+            nModels = len(psets)
+            shellCmd = _make_shell_command(fspsqPath, commandPath, nModels, varSet)
             print "cmd::", shellCmd
             subprocess.call(shellCmd, shell=True)
             # Get output data from FSPS
@@ -163,11 +167,11 @@ def _make_common_var_sets(c):
                                 "pset.redshift_colors":iredshift})
     return groups
 
-def _make_shell_command(fspsqPath, commandFilePath, varSet):
+def _make_shell_command(fspsqPath, commandFilePath, nModels, varSet):
     """Crafts the command for running `fspsq`, returning a string."""
     params = ['sfh', 'zmet', 'dust_type', 'imf_type',
         'compute_vega_mags', 'redshift_colors']
-    cmd = "%s %s %i %i %i %i %i %i" % (fspsqPath, commandFilePath,
+    cmd = "%s %s %i %i %i %i %i %i %i" % (fspsqPath, commandFilePath, nModels,
         varSet['pset.sfh'], varSet['pset.zmet'], varSet['pset.dust_type'],
         varSet['pset.imf_type'], varSet['pset.compute_vega_mags'],
         varSet['pset.redshift_colors'])
@@ -188,7 +192,11 @@ def _gather_fsps_outputs(c, modelNames):
         npDataSmall = npdata[:1]
         c.update({"_id": modelName}, {"$set": {"compute_complete": True}})
         binData = Binary(pickle.dumps(npdata,-1))
-        c.update({"_id": modelName}, {"$set": {"np_data": {'_type': 'np.ndarray', 'data':binData}}})
+        c.update({"_id": modelName},
+            {"$set": {"np_data": {'_type': 'np.ndarray', 'data':binData}}})
+        # Remove data files
+        os.remove(magPath)
+        os.remove(magSpec)
         # load data with pickle.load(doc['np_data']['data])
         
         # Using SON Manipulator:
