@@ -187,11 +187,14 @@ def _gather_fsps_outputs(c, modelNames):
         npdata = ingest_output(magPath, magSpec)
         npDataSmall = npdata[:1]
         c.update({"_id": modelName}, {"$set": {"compute_complete": True}})
-        print c.find_one({"_id": modelName})
-        print "type:", type(npDataSmall)
-        c.update({"_id": modelName}, {"$set": {"np_data": npDataSmall}})
-        print c.find_one({"_id": modelName})['np_data']
-        print "update complete!"
+        # print c.find_one({"_id": modelName})
+        # print "type:", type(npDataSmall)
+        # c.update({"_id": modelName}, {"$set": {"np_data": npDataSmall}})
+        binData = Binary(pickle.dumps(npdata,-1))
+        # print "BinaryData", type(binData)
+        c.update({"_id": modelName}, {"$set": {"np_data": {'_type': 'np.ndarray', 'data':binData}}})
+        # print c.find_one({"_id": modelName})['np_data']
+        # print "update complete!"
 
 class ParameterSet(object):
     """An input parameter set for a FSPS model run."""
