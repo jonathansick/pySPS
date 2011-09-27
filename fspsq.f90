@@ -41,6 +41,9 @@ program fspsq
     read (s_vega,*) compute_vega_mags
     read (s_redshift,*) redshift_colors
     
+    ! Initialize the isochrones
+    call SPS_SETUP(pset%zmet)
+    
     write (*,*) trim(input_path)
     imodel = 0
     open(15,file=trim(input_path),status='OLD')
