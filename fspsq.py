@@ -106,7 +106,7 @@ def run_fspsq(args):
                 print "q", q
                 doc = collection.find_and_modify(query=q,
                     update={"$set": {"compute_started": True,
-                                     "compute_date": now,
+                                     "queue_date": now,
                                      "compute_host": thisHost}},)
                 print "doc", doc
                 if doc is None: break # no available models
@@ -185,8 +185,12 @@ def _gather_fsps_outputs(c, modelNames):
         magPath = os.path.join(outputDir, modelName+".out.mags")
         magSpec = os.path.join(outputDir, modelName+".out.spec")
         npdata = ingest_output(magPath, magSpec)
+        npDataSmall = npdata[:1]
+        c.update({"_id": modelName}, {"$set": {"compute_complete": True}})
         print c.find_one({"_id": modelName})
-        # c.update({"_id": modelName}, {"$set": {"np_data": npdata, "compute_complete": True}})
+        print "type:", type(npDataSmall)
+        c.update({"_id": modelName}, {"$set": {"np_data": npDataSmall}})
+        print c.find_one({"_id": modelName})['np_data']
         print "update complete!"
 
 class ParameterSet(object):
