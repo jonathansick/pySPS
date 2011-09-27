@@ -1,5 +1,6 @@
 """Test fspsq with a tiny grid of models--a basic burn in test case."""
 
+import fspsq
 from fspsq import FSPSLibrary
 from fspsq import ParameterSet
 
