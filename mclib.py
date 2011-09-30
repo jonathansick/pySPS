@@ -9,8 +9,8 @@ from fspsq import ParameterSet
 
 def main():
     library = MonteCarloLibrary("mc.1", dbname='fsps')
-    # library.reset()
-    # library.define_samples()
+    library.reset()
+    library.define_samples()
     library.compute_models(nThreads=8, maxN=50)
 
 class MonteCarloLibrary(FSPSLibrary):
@@ -22,7 +22,7 @@ class MonteCarloLibrary(FSPSLibrary):
             pset = ParameterSet(None, # automatically create a name
                 sfh=1,
                 imf_type=1, # Chabrier 2003
-                dust_type=2., # Calzetti 2000 attenuation curve
+                dust_type=2, # Calzetti 2000 attenuation curve
                 zmet=int(self._sample_zmet()),
                 tau=float(self._sample_tau()),
                 const=float(self._sample_const()),
