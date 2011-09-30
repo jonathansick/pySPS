@@ -10,6 +10,7 @@ import pytz
 import pymongo
 import numpy as np
 
+import bson
 from bson.binary import Binary
 from pymongo.son_manipulator import SONManipulator
 
@@ -59,7 +60,7 @@ class FSPSLibrary(object):
             commandPath = processorName+".txt"
             args.append((self.libname, self.dbname, self.host, self.port,
                 maxN, fspsqPath, commandPath))
-        print args
+        # print args
         if nThreads > 1:
             pool = multiprocessing.Pool(processes=nThreads)
             pool.map(run_fspsq, args)
@@ -96,7 +97,7 @@ def run_fspsq(args):
     collection = db[libname]
     
     commonVarSets = _make_common_var_sets(collection)
-    print "commonVarSets:", commonVarSets
+    # print "commonVarSets:", commonVarSets
     for varSet in commonVarSets:
         while True:
             psets = []
@@ -106,12 +107,12 @@ def run_fspsq(args):
             while len(psets) <= maxN:
                 q = {"compute_complete": False, "compute_started": False}
                 q.update(varSet)
-                print "q", q
+                # print "q", q
                 doc = collection.find_and_modify(query=q,
                     update={"$set": {"compute_started": True,
                                      "queue_date": now,
                                      "compute_host": thisHost}},)
-                print "doc", doc
+                # print "doc", doc
                 if doc is None: break # no available models
                 modelName = str(doc['_id'])
                 pset = ParameterSet(modelName, **doc['pset'])
@@ -126,7 +127,7 @@ def run_fspsq(args):
             f.close()
             nModels = len(psets)
             shellCmd = _make_shell_command(fspsqPath, commandPath, nModels, varSet)
-            print "cmd::", shellCmd
+            # print "cmd::", shellCmd
             subprocess.call(shellCmd, shell=True)
             # Get output data from FSPS
             _gather_fsps_outputs(collection, modelNames)
@@ -184,7 +185,7 @@ def _gather_fsps_outputs(c, modelNames):
     """
     fspsDir = os.environ['SPS_HOME'] # environment variable for FSPS
     outputDir = os.path.join(fspsDir, "OUTPUTS")
-    print modelNames
+    # print modelNames
     for modelName in modelNames:
         magPath = os.path.join(outputDir, modelName+".out.mags")
         magSpec = os.path.join(outputDir, modelName+".out.spec")
@@ -217,7 +218,10 @@ def _gather_fsps_outputs(c, modelNames):
 class ParameterSet(object):
     """An input parameter set for a FSPS model run."""
     def __init__(self, name, **kwargs):
-        self.name = name # name of this model
+        if name is None:
+            self.name = str(bson.objectid.ObjectId())
+        else:
+            self.name = str(name) # name of this model
         # Default values
         self.p = {"compute_vega_mags":0, "dust_type":0, "imf_type":0,
                 "isoc_type":'pdva', "redshift_colors":0, "time_res_incr":2,
@@ -247,7 +251,7 @@ class ParameterSet(object):
                 ("wgp1","%i"),("wgp2","%i"),("wgp3","%i"),("dell","%.2f"),
                 ("delt","%.2f"),("sbss","%.2f"),("fbhb","%.2f"),
                 ("pagb","%.2f")]
-        cmd = self.name + " " + " ".join([s % self.p[k] for (k,s) in dt])
+        cmd = str(self.name) + " " + " ".join([s % self.p[k] for (k,s) in dt])
         return cmd
     
     def get_doc(self):
