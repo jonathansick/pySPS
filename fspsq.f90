@@ -65,6 +65,7 @@ program fspsq
         output_path = trim(model_name)//'.out'
         CALL COMPSP(3,1,output_path,mass_ssp,lbol_ssp,spec_ssp,pset,ocompsp)
     end do
+    imodel = imodel-1
     close(15)
     write (*,*) imodel, ' model(s) processed'
     stop

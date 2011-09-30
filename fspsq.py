@@ -127,7 +127,7 @@ def run_fspsq(args):
             f.close()
             nModels = len(psets)
             shellCmd = _make_shell_command(fspsqPath, commandPath, nModels, varSet)
-            # print "cmd::", shellCmd
+            print "cmd::", shellCmd
             subprocess.call(shellCmd, shell=True)
             # Get output data from FSPS
             _gather_fsps_outputs(collection, modelNames)
@@ -172,7 +172,7 @@ def _make_shell_command(fspsqPath, commandFilePath, nModels, varSet):
     """Crafts the command for running `fspsq`, returning a string."""
     params = ['sfh', 'zmet', 'dust_type', 'imf_type',
         'compute_vega_mags', 'redshift_colors']
-    cmd = "%s %s %i %i %i %i %i %i %i" % (fspsqPath, commandFilePath, nModels,
+    cmd = "%s %s %i %i %02i %i %i %i %i" % (fspsqPath, commandFilePath, nModels,
         varSet['pset.sfh'], varSet['pset.zmet'], varSet['pset.dust_type'],
         varSet['pset.imf_type'], varSet['pset.compute_vega_mags'],
         varSet['pset.redshift_colors'])
