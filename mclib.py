@@ -1,12 +1,19 @@
 """Basic Monte Carlo stellar population library."""
-
+import os
+import cPickle as pickle
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
 import bson
+import tables
 
 import fspsq
 from fspsq import FSPSLibrary
 from fspsq import ParameterSet
+
+from mediumgrid import get_metallicity_LUT
+from mediumgrid import MagTableDef
+
 
 def main():
     #library = MonteCarloLibrary("mc.1", dbname='fsps')
@@ -26,7 +33,8 @@ def main():
     #library.reset()
     #library.define_samples(n=10000)
     #library.compute_models(nThreads=6, maxN=50)
-    library.plot_parameter_hists()
+    #library.plot_parameter_hists()
+    library.create_mag_table("mc3.h5", t=13.7)
 
 class MonteCarloLibrary(FSPSLibrary):
     """Demonstration of a Monte Carlo sampled stellar pop library."""
@@ -183,6 +191,51 @@ class MonteCarloLibrary(FSPSLibrary):
         axFburst.hist(fbursts, histtype='step')
         axTburst.hist(tbursts, histtype='step')
         fig.savefig("parameters.pdf", format="pdf")
+
+    def create_mag_table(self, outputPath, t=13.7,
+            isocType="pdva", specType="basel"):
+        """Create an HDF5 table of that describes a set of magnitudes for
+        stellar population realizations at a defined age (gyr from BigBang)"""
+        if os.path.exists(outputPath): os.remove(outputPath)
+        title = os.path.splitext(os.path.basename(outputPath))[0]
+        h5file = tables.openFile(outputPath, mode="w", title=title)
+        table = h5file.createTable("/", 'mags', MagTableDef, "Mag Model Table")
+        print h5file
+        docs = self.collection.find({"compute_complete":True,
+            "np_data": {"$exists": 1}}) # , limit=2
+        print "working on %i docs to read" % docs.count()
+        lut = get_metallicity_LUT(isocType, specType)
+        for doc in docs:
+            print "reading", doc['_id']
+            # print doc.keys()
+            # print doc['np_data']
+            npData = doc['np_data']
+            # print npData.dtype
+            # binData = Binary(doc['np_data']['data'])
+            # print type(binData)
+            # npData = pickle.load(binData)
+            nRows = len(npData)
+            # Append model information (about SFH, dust, etc)
+            zmet = doc['pset']['zmet']
+            Z = lut[zmet-1]
+            zmets = np.ones(nRows, dtype=np.float) * Z
+            tau = doc['pset']['tau']
+            taus = np.ones(nRows, dtype=np.float) * tau
+            npDataAll = mlab.rec_append_fields(npData, ['Z','tau'],[zmets,taus])
+            # Trim the recarray to just the desired fields
+            npDataTrim = mlab.rec_keep_fields(npDataAll,
+                ['Z','tau','age','mass','lbol','sfr','TMASS_J','TMASS_H',
+                'TMASS_Ks','MegaCam_u','MegaCam_g','MegaCam_r','MegaCam_i',
+                'MegaCam_z','GALEX_NUV','GALEX_FUV'])
+            # select row closest to the target age
+            ageGyr = 10.**npDataTrim['age'] / 10.**9
+            i = np.argmin((ageGyr - t)**2)
+            row = npDataTrim[i]
+            print row['Z'], row['tau'],row['TMASS_J'],row['TMASS_Ks']
+            # Append to HDF5
+            table.append(row)
+        h5file.flush()
+        h5file.close()
 
 def no_xticklabels(ax):
     """Removes tick marks from the x axis."""
