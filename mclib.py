@@ -205,6 +205,10 @@ class MonteCarloLibrary(FSPSLibrary):
             "np_data": {"$exists": 1}}) # , limit=2
         print "working on %i docs to read" % docs.count()
         lut = get_metallicity_LUT(isocType, specType)
+        rows = []
+        cols = ['Z','tau','age','mass','lbol','sfr','TMASS_J','TMASS_H',
+                'TMASS_Ks','MegaCam_u','MegaCam_g','MegaCam_r','MegaCam_i',
+                'MegaCam_z','GALEX_NUV','GALEX_FUV']
         for doc in docs:
             print "reading", doc['_id']
             # print doc.keys()
@@ -230,10 +234,16 @@ class MonteCarloLibrary(FSPSLibrary):
             # select row closest to the target age
             ageGyr = 10.**npDataTrim['age'] / 10.**9
             i = np.argmin((ageGyr - t)**2)
-            row = npDataTrim[i]
+            row = np.array(npDataTrim[i], copy=True)
+            print i, row.shape, row.dtype
             print row['Z'], row['tau'],row['TMASS_J'],row['TMASS_Ks']
+            rows.append(row)
             # Append to HDF5
-            table.append(row)
+            for col in cols:
+                table.row[col] = row[col]
+            table.row.append()
+            #table.append(npDataTrim)
+        #mlab.recs_join(key, name, rows, jointype='outer', missing=0.0, postfixes=None)
         h5file.flush()
         h5file.close()
 

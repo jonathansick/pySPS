@@ -95,7 +95,7 @@ class MagTableDef(tables.IsDescription):
     # names correspond to names in the ingested record array
     # 64-bit floats correspond to the default numpy floats
     # data corruption will occur if types mis-match (no casting is done)
-    zmet = tables.Float64Col() # logZ/Z_solar
+    Z = tables.Float64Col() # logZ/Z_solar
     tau = tables.Float64Col() # tau
     age = tables.Float64Col() # log Age
     mass = tables.Float64Col() # logMass
