@@ -157,10 +157,10 @@ class MonteCarloLibrary(FSPSLibrary):
     def plot_parameter_hists(self):
         """Plot a histogram of each of the parameters in teh library."""
         fig = plt.figure(figsize=(6,6))
-        axZ = ax.add_subplot(221)
-        axTau = ax.add_subplot(222)
-        axFburst = ax.add_subplot(223)
-        axTburst = ax.add_subplot(224)
+        axZ = fig.add_subplot(221)
+        axTau = fig.add_subplot(222)
+        axFburst = fig.add_subplot(223)
+        axTburst = fig.add_subplot(224)
 
         docs = self.collection.find({"compute_complete":True,
             "np_data": {"$exists": 1}},
