@@ -23,9 +23,10 @@ def main():
     #library.plot_sample_sfh()
 
     library = MonteCarloLibrary2("mc.3", dbname='fsps')
-    library.reset()
-    library.define_samples(n=10000)
-    library.compute_models(nThreads=6, maxN=50)
+    #library.reset()
+    #library.define_samples(n=10000)
+    #library.compute_models(nThreads=6, maxN=50)
+    library.plot_parameter_hists()
 
 class MonteCarloLibrary(FSPSLibrary):
     """Demonstration of a Monte Carlo sampled stellar pop library."""
@@ -153,6 +154,35 @@ class MonteCarloLibrary(FSPSLibrary):
 
         fig.savefig("sfh.pdf", format="pdf")
 
+    def plot_parameter_hists(self):
+        """Plot a histogram of each of the parameters in teh library."""
+        fig = plt.figure(figsize=(6,6))
+        axZ = ax.add_subplot(221)
+        axTau = ax.add_subplot(222)
+        axFburst = ax.add_subplot(223)
+        axTburst = ax.add_subplot(224)
+
+        docs = self.collection.find({"compute_complete":True,
+            "np_data": {"$exists": 1}},
+            ['pset.tau','pset.zmet','pset.fburst','pset.tburst'])
+        taus = []
+        zmets = []
+        fbursts = []
+        tbursts = []
+        for doc in docs:
+            taus.append(doc['pset']['tau'])
+            zmets.append(doc['pset']['zmet'])
+            fbursts.append(doc['pset']['fburst'])
+            tbursts.append(doc['pset']['tburst'])
+        taus = np.array(taus)
+        zmets = np.array(zmets)
+        fbursts = np.array(fbursts)
+        tbursts = np.array(tbursts)
+        axZ.hist(zmets, histtype='step')
+        axTau.hist(taus, histtype='step')
+        axFburst.hist(fbursts, histtype='step')
+        axTburst.hist(tbursts, histtype='step')
+        fig.savefig("parameters.pdf", format="pdf")
 
 def no_xticklabels(ax):
     """Removes tick marks from the x axis."""
