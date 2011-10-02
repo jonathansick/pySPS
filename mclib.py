@@ -14,6 +14,8 @@ from fspsq import ParameterSet
 from mediumgrid import get_metallicity_LUT
 from mediumgrid import MagTableDef
 
+from griddata import griddata
+
 
 def main():
     #library = MonteCarloLibrary("mc.1", dbname='fsps')
@@ -34,7 +36,9 @@ def main():
     #library.define_samples(n=10000)
     #library.compute_models(nThreads=6, maxN=50)
     #library.plot_parameter_hists()
-    library.create_mag_table("mc3.h5", t=13.7)
+    #library.create_mag_table("mc3.h5", t=13.7)
+    library.bin_cc_index(("MegaCam_g","MegaCam_i"),("MegaCam_i","TMASS_Ks"),
+            "mc3.h5")
 
 class MonteCarloLibrary(FSPSLibrary):
     """Demonstration of a Monte Carlo sampled stellar pop library."""
@@ -244,6 +248,51 @@ class MonteCarloLibrary(FSPSLibrary):
             table.row.append()
             #table.append(npDataTrim)
         #mlab.recs_join(key, name, rows, jointype='outer', missing=0.0, postfixes=None)
+        h5file.flush()
+        h5file.close()
+
+    def bin_cc_index(self, c1I, c2I, h5Path):
+        """Bin the mag table into a colour colour diagram.
+
+        Produces an color-color table with indexes into models in
+        the mags HDF5 table.
+
+        Parameters
+        ----------
+
+        c1I : tuple of two str
+            Names of the two bands that make the first colour
+        c2I : tuple of two str
+            Names of the two bands that make the second colour
+        """
+        h5file = tables.openFile(h5Path)
+        magTable = h5file.root.mags
+        c1 = np.array([x[c1I[0]]-x[c1I[1]] for x in magTable])
+        c2 = np.array([x[c2I[0]]-x[c2I[1]] for x in magTable])
+        mass = np.array([x['mass'] for x in magTable])
+        logL = np.array([x['lbol'] for x in magTable])
+        logML = mass - logL
+        grid, gridN, wherebin = griddata(c1, c2, logML, binsize=0.05,
+                retbin=True, retloc=True)
+        # Set up the cc table
+        if 'cc' in h5file.root:
+            print "cc already exists"
+            del h5file.root.cc
+        ccDtype = np.dtype([('c1',np.int),('c2',np.int),('xi',np.int),
+            ('yi',np.int),('ml',np.float)])
+        ccTable = h5file.root.createTable("/", 'cc', ccDtype,
+                "CC Table %s-%s %s-%s" % (c1I[0],c1I[1],c2I[0],c2I[1]))
+        ny, nx = grid.shape
+        c1colors = np.arange(c1.min(), c1.max()+0.05, 0.05)
+        c2colors = np.arange(c2.min(), c2.max()+0.05, 0.05)
+        for i in xrange(ny):
+            for j in xrange(nx):
+                ccTable.row['c1'] = c1colors[j]
+                ccTable.row['c2'] = c2colors[i]
+                ccTable.row['xi'] = i
+                ccTable.row['yi'] = j
+                ccTable.row['ml'] = grid[i,j]
+                ccTable.row.flush()
         h5file.flush()
         h5file.close()
 
