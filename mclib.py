@@ -265,7 +265,7 @@ class MonteCarloLibrary(FSPSLibrary):
         c2I : tuple of two str
             Names of the two bands that make the second colour
         """
-        h5file = tables.openFile(h5Path)
+        h5file = tables.openFile(h5Path, mode='a')
         magTable = h5file.root.mags
         c1 = np.array([x[c1I[0]]-x[c1I[1]] for x in magTable])
         c2 = np.array([x[c2I[0]]-x[c2I[1]] for x in magTable])
@@ -274,17 +274,20 @@ class MonteCarloLibrary(FSPSLibrary):
         logML = mass - logL
         grid, gridN, wherebin = griddata(c1, c2, logML, binsize=0.05,
                 retbin=True, retloc=True)
+        print "grid", grid.shape
         # Set up the cc table
         if 'cc' in h5file.root:
             print "cc already exists"
-            del h5file.root.cc
+            h5file.root.cc._f_remove()
         ccDtype = np.dtype([('c1',np.int),('c2',np.int),('xi',np.int),
             ('yi',np.int),('ml',np.float)])
-        ccTable = h5file.root.createTable("/", 'cc', ccDtype,
+        ccTable = h5file.createTable("/", 'cc', ccDtype,
                 "CC Table %s-%s %s-%s" % (c1I[0],c1I[1],c2I[0],c2I[1]))
         ny, nx = grid.shape
         c1colors = np.arange(c1.min(), c1.max()+0.05, 0.05)
         c2colors = np.arange(c2.min(), c2.max()+0.05, 0.05)
+        print "g-i", c1colors
+        print "i-Ks", c2colors
         for i in xrange(ny):
             for j in xrange(nx):
                 ccTable.row['c1'] = c1colors[j]
@@ -292,7 +295,7 @@ class MonteCarloLibrary(FSPSLibrary):
                 ccTable.row['xi'] = i
                 ccTable.row['yi'] = j
                 ccTable.row['ml'] = grid[i,j]
-                ccTable.row.flush()
+                ccTable.row.append()
         h5file.flush()
         h5file.close()
 
