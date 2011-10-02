@@ -37,6 +37,7 @@ def main():
     #library.compute_models(nThreads=6, maxN=50)
     #library.plot_parameter_hists()
     #library.create_mag_table("mc3.h5", t=13.7)
+    library.colour_histogram("mc3.h5", ("MegaCam_i","TMASS_Ks"))
     library.bin_cc_index(("MegaCam_g","MegaCam_i"),("MegaCam_i","TMASS_Ks"),
             "mc3.h5")
 
@@ -195,6 +196,21 @@ class MonteCarloLibrary(FSPSLibrary):
         axFburst.hist(fbursts, histtype='step')
         axTburst.hist(tbursts, histtype='step')
         fig.savefig("parameters.pdf", format="pdf")
+
+    def colour_histogram(self, h5path, cInd):
+        """docstring for colour_histogram"""
+        h5file = tables.openFile(h5path, mode="r")
+        table = h5file.root.mags
+        
+        c = np.array([x[cInd[0]]-x[cInd[1]] for x in table])
+        c = c[c<5.]
+
+        fig = plt.figure(figsize=(4,4))
+        ax = fig.add_subplot(111)
+        ax.hist(c, bins=100)
+        ax.set_xlabel("%s - %s" % cInd)
+        fig.savefig("color_hist.pdf", format="pdf")
+        h5file.close()
 
     def create_mag_table(self, outputPath, t=13.7,
             isocType="pdva", specType="basel"):
