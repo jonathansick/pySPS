@@ -9,7 +9,7 @@ program fspsq
     implicit none
 
     character(len=64) :: input_path
-    integer :: imodel, n_models
+    integer :: imodel, n_models, zmet
     character(len=256) :: model_name, output_path
     character(len=1) :: s_sfh, s_dust_type, s_imf_type, s_vega, s_redshift
     character(len=2) :: s_zmet
@@ -29,12 +29,12 @@ program fspsq
     ! Gather common settings and model spec file from command line
     call get_command_argument(1, input_path)
     call get_command_argument(2, s_n_models)
-    call get_command_argument(2, s_sfh)
-    call get_command_argument(3, s_zmet)
-    call get_command_argument(4, s_dust_type) ! sps_vars
-    call get_command_argument(5, s_imf_type) ! sps_vars
-    call get_command_argument(6, s_vega) ! sps_vars
-    call get_command_argument(7, s_redshift) ! sps_vars
+    call get_command_argument(3, s_sfh)
+    call get_command_argument(4, s_zmet)
+    call get_command_argument(5, s_dust_type) ! sps_vars
+    call get_command_argument(6, s_imf_type) ! sps_vars
+    call get_command_argument(7, s_vega) ! sps_vars
+    call get_command_argument(8, s_redshift) ! sps_vars
     ! Cast command line parameters to integers
     read (s_n_models,*) n_models
     read (s_sfh,*) pset%sfh
@@ -58,7 +58,7 @@ program fspsq
             pset%dust_clumps, pset%frac_nodust, pset%dust_index, pset%mwr, &
             pset%uvb, pset%wgp1, pset%wgp2, pset%wgp3, pset%dell,pset%delt, &
             pset%sbss, pset%fbhb, pset%pagb
-        write (*,*) trim(model_name), pset%tau
+        write (*,*) trim(model_name), pset%zmet, pset%tau
         !compute the SSP
         CALL SSP_GEN(pset,mass_ssp,lbol_ssp,spec_ssp)
         !compute mags and write out mags and spec for SSP
