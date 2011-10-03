@@ -32,14 +32,14 @@ def main():
     #tauzGrid.compute_models(nThreads=2, maxN=10, clean=True)
     #tauzGrid.plot_color("tauzgrid", 'MegaCam_g', 'MegaCam_i')
 
-    mclib = MonteCarloLibrary('mc.4')
-    #mclib.reset()
-    #mclib.define_samples(n=10000)
-    #mclib.compute_models(nThreads=8, maxN=100, clean=True)
-    mclib.create_mag_table("mc4.h5")
+    mclib = MonteCarloLibrary('mc.5')
+    mclib.reset()
+    mclib.define_samples(n=50000)
+    mclib.compute_models(nThreads=8, maxN=100, clean=True)
+    mclib.create_mag_table("mc5.h5")
     mclib.bin_cc_index(("MegaCam_i","TMASS_Ks"),("MegaCam_g","MegaCam_i"),
-            "mc4.h5")
-    mclib.plot_cc_lut("mc4.h5", r"$i^\prime-K_s$", r"$g^\prime-i^\prime$")
+            "mc5.h5")
+    mclib.plot_cc_lut("mc5.h5", r"$i^\prime-K_s$", r"$g^\prime-i^\prime$")
 
 
 class TauZGrid(snapshotlib.SnapshotLibrary):
@@ -119,7 +119,7 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
     
     def _sample_tau(self):
         """Returns a random e-folding of SFR"""
-        return np.random.uniform(0.1, 10,)
+        return np.random.uniform(0.1, 50,)
     
     def _sample_const(self):
         """Returns fraction of mass formed as a constant mode of SF"""
@@ -127,7 +127,7 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
     
     def _sample_sf_start(self):
         """Start time of SFH in Gyr"""
-        return np.random.uniform(0.5,3.)
+        return np.random.uniform(0.5,10.)
     
     def _sample_fburst(self):
         """Fraction of mass formed in an instantaneous burst of SF."""
@@ -203,7 +203,7 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
         if 'cc' in h5file.root:
             print "cc already exists"
             h5file.root.cc._f_remove()
-        ccDtype = np.dtype([('c1',np.int),('c2',np.int),('xi',np.int),
+        ccDtype = np.dtype([('c1',np.float),('c2',np.float),('xi',np.int),
             ('yi',np.int),('ml',np.float)])
         ccTable = h5file.createTable("/", 'cc', ccDtype,
                 "CC Table %s-%s %s-%s" % (c1I[0],c1I[1],c2I[0],c2I[1]))
@@ -245,12 +245,13 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
 
         # Extent is the physical limits (left, right, bottom, top)
         extent = [min(c1), max(c1), min(c2), max(c2)]
+        print "extent:", extent
         lut = np.empty((ny,nx), dtype=np.float)
         for i in xrange(len(c1)):
             lut[yi[i],xi[i]] = ml[i]
         print lut.shape
 
-        fig = plt.figure(figsize=(4.,3.5)) # set width,height in inches
+        fig = plt.figure(figsize=(4.,2.75)) # set width,height in inches
         fig.subplots_adjust(left=0.15, bottom=0.1, right=0.85, top=0.99)
         ax = fig.add_subplot(111)
         im = ax.imshow(lut, cmap=mpl.cm.jet, aspect='equal', extent=extent,
@@ -258,7 +259,7 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
         # Create the colorbar
         # see http://matplotlib.sourceforge.net/api/pyplot_api.html#matplotlib.pyplot.colorbar
         cbar = fig.colorbar(mappable=im, cax=None, ax=ax, orientation='vertical',
-            fraction=0.1, pad=0.0, shrink=0.8,)
+            fraction=0.1, pad=0.02, shrink=0.75,)
         cbar.set_label(r'$\langle\log M/L_\mathrm{bol}\rangle$')
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
