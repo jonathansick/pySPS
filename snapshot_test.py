@@ -32,14 +32,14 @@ def main():
     #tauzGrid.compute_models(nThreads=2, maxN=10, clean=True)
     #tauzGrid.plot_color("tauzgrid", 'MegaCam_g', 'MegaCam_i')
 
-    mclib = MonteCarloLibrary('mc.5')
+    mclib = MonteCarloLibrary('mc.6')
     mclib.reset()
     mclib.define_samples(n=50000)
     mclib.compute_models(nThreads=8, maxN=100, clean=True)
-    mclib.create_mag_table("mc5.h5")
+    mclib.create_mag_table("mc6.h5")
     mclib.bin_cc_index(("MegaCam_i","TMASS_Ks"),("MegaCam_g","MegaCam_i"),
-            "mc5.h5")
-    mclib.plot_cc_lut("mc5.h5", r"$i^\prime-K_s$", r"$g^\prime-i^\prime$")
+            "mc6.h5")
+    mclib.plot_cc_lut("mc6.h5", r"$i^\prime-K_s$", r"$g^\prime-i^\prime$")
 
 
 class TauZGrid(snapshotlib.SnapshotLibrary):
@@ -119,23 +119,23 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
     
     def _sample_tau(self):
         """Returns a random e-folding of SFR"""
-        return np.random.uniform(0.1, 20.)
+        return np.random.uniform(0.1, 100.)
     
     def _sample_const(self):
         """Returns fraction of mass formed as a constant mode of SF"""
-        return np.random.uniform(0.1,0.5)
+        return np.random.uniform(0.1,1.)
     
     def _sample_sf_start(self):
         """Start time of SFH in Gyr"""
-        return np.random.uniform(0.5,4.)
+        return np.random.uniform(0.5,10.)
     
     def _sample_fburst(self):
         """Fraction of mass formed in an instantaneous burst of SF."""
-        return np.random.uniform(0.,0.5)
+        return np.random.uniform(0.,0.9)
     
     def _sample_tburst(self):
         """Time of the burst after the BB."""
-        return np.random.uniform(1.5,12.5)
+        return np.random.uniform(1.5,13.5)
     
     def _sample_dust2(self):
         """Optical depth of ambient ISM."""
