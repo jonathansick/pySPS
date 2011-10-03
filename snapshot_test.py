@@ -210,6 +210,8 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
         ny, nx = grid.shape
         c1colors = np.arange(c1.min(), c1.max()+0.05, 0.05)
         c2colors = np.arange(c2.min(), c2.max()+0.05, 0.05)
+        print "c1 range:", c1.min(), c1.max()
+        print "c2 range:", c2.min(), c2.max()
         for i in xrange(ny):
             for j in xrange(nx):
                 ccTable.row['c1'] = float(c1colors[j])
