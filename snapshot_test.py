@@ -119,7 +119,7 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
     
     def _sample_tau(self):
         """Returns a random e-folding of SFR"""
-        return np.random.uniform(0.1, 50,)
+        return np.random.uniform(0.1, 20.)
     
     def _sample_const(self):
         """Returns fraction of mass formed as a constant mode of SF"""
@@ -127,7 +127,7 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
     
     def _sample_sf_start(self):
         """Start time of SFH in Gyr"""
-        return np.random.uniform(0.5,10.)
+        return np.random.uniform(0.5,4.)
     
     def _sample_fburst(self):
         """Fraction of mass formed in an instantaneous burst of SF."""
