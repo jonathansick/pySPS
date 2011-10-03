@@ -33,10 +33,10 @@ def main():
     #tauzGrid.plot_color("tauzgrid", 'MegaCam_g', 'MegaCam_i')
 
     mclib = MonteCarloLibrary('mc.6')
-    mclib.reset()
-    mclib.define_samples(n=50000)
-    mclib.compute_models(nThreads=8, maxN=100, clean=True)
-    mclib.create_mag_table("mc6.h5")
+    #mclib.reset()
+    #mclib.define_samples(n=50000)
+    #mclib.compute_models(nThreads=8, maxN=100, clean=True)
+    #mclib.create_mag_table("mc6.h5")
     mclib.bin_cc_index(("MegaCam_i","TMASS_Ks"),("MegaCam_g","MegaCam_i"),
             "mc6.h5")
     mclib.plot_cc_lut("mc6.h5", r"$i^\prime-K_s$", r"$g^\prime-i^\prime$")
@@ -204,7 +204,7 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
             print "cc already exists"
             h5file.root.cc._f_remove()
         ccDtype = np.dtype([('c1',np.float),('c2',np.float),('xi',np.int),
-            ('yi',np.int),('ml',np.float)])
+            ('yi',np.int),('ml',np.float),('nmodels',np.int)])
         ccTable = h5file.createTable("/", 'cc', ccDtype,
                 "CC Table %s-%s %s-%s" % (c1I[0],c1I[1],c2I[0],c2I[1]))
         ny, nx = grid.shape
@@ -219,6 +219,8 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
                 ccTable.row['yi'] = i
                 ccTable.row['xi'] = j
                 ccTable.row['ml'] = grid[i,j]
+                ccTable.row['nmodels'] = int(gridN[i,j])
+                print gridN[i,j]
                 ccTable.row.append()
         h5file.flush()
         h5file.close()
@@ -227,13 +229,14 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
         """Create the g-i,i-Ks M/L look up table plot."""
         h5file = tables.openFile(h5Path, mode='a')
         ccTable = h5file.root.cc
-        c1, c2, xi, yi, ml = [],[],[],[],[]
+        c1, c2, xi, yi, ml, n = [],[],[],[],[],[]
         for row in ccTable:
             c1.append(row['c1'])
             c2.append(row['c2'])
             xi.append(row['xi'])
             yi.append(row['yi'])
             ml.append(row['ml'])
+            n.append(row['nmodels'])
         c1 = np.array(c1)
         c2 = np.array(c2)
         xi = np.array(xi, dtype=np.int)
@@ -247,13 +250,16 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
         extent = [min(c1), max(c1), min(c2), max(c2)]
         print "extent:", extent
         lut = np.empty((ny,nx), dtype=np.float)
+        nImage = np.empty((ny,nx), dtype=np.float)
         for i in xrange(len(c1)):
             lut[yi[i],xi[i]] = ml[i]
+            nImage[yi[i],xi[i]] = n[i]
         print lut.shape
+        nImage[nImage == 0] = np.nan
 
-        fig = plt.figure(figsize=(4.,2.75)) # set width,height in inches
+        fig = plt.figure(figsize=(4.,5,)) # set width,height in inches
         fig.subplots_adjust(left=0.15, bottom=0.1, right=0.85, top=0.99)
-        ax = fig.add_subplot(111)
+        ax = fig.add_subplot(211)
         im = ax.imshow(lut, cmap=mpl.cm.jet, aspect='equal', extent=extent,
             interpolation='nearest', origin='lower')
         # Create the colorbar
@@ -263,7 +269,16 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
         cbar.set_label(r'$\langle\log M/L_\mathrm{bol}\rangle$')
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
-        fig.savefig(h5Path+".pdf", format="pdf") # can also do "eps", etc.
+
+        axN = fig.add_subplot(212)
+        im2 = axN.imshow(nImage, cmap=mpl.cm.jet, aspect='equal', extent=extent,
+            interpolation='nearest', origin='lower')
+        cbar2 = fig.colorbar(mappable=im2, cax=None, ax=axN, orientation='vertical',
+            fraction=0.1, pad=0.02, shrink=0.75,)
+        cbar2.set_label(r'N models')
+        axN.set_xlabel(xlabel)
+        axN.set_ylabel(ylabel)
+        fig.savefig(h5Path+".2.pdf", format="pdf") # can also do "eps", etc.
 
 if __name__ == '__main__':
     main()
