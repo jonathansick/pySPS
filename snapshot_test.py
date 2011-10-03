@@ -245,14 +245,14 @@ class MonteCarloLibrary(snapshotlib.SnapshotLibrary):
         extent = [min(c1), max(c1), min(c2), max(c2)]
         lut = np.empty((ny,nx), dtype=np.float)
         for i in xrange(len(c1)):
-            lut[ny-yi[i]-1,xi[i]] = ml[i]
+            lut[yi[i],xi[i]] = ml[i]
         print lut.shape
 
         fig = plt.figure(figsize=(4.,3.5)) # set width,height in inches
         fig.subplots_adjust(left=0.15, bottom=0.1, right=0.85, top=0.99)
         ax = fig.add_subplot(111)
         im = ax.imshow(lut, cmap=mpl.cm.jet, aspect='equal', extent=extent,
-            interpolation='nearest')
+            interpolation='nearest', origin='lower')
         # Create the colorbar
         # see http://matplotlib.sourceforge.net/api/pyplot_api.html#matplotlib.pyplot.colorbar
         cbar = fig.colorbar(mappable=im, cax=None, ax=ax, orientation='vertical',
