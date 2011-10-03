@@ -86,51 +86,7 @@ class FSPSLibrary(object):
 
 def run_fspsq(args):
     """A process for running fsps jobs."""
-    # print "hello"
-    libname, dbname, host, port, maxN, fspsqPath, commandPath = args
-    thisHost = socket.gethostname() # hostname of current process
     
-    # Connect to the library in MongoDB
-    connection = pymongo.Connection(host=host, port=port)
-    db = connection[dbname]
-    db.add_son_manipulator(NumpySONManipulator())
-    collection = db[libname]
-    
-    commonVarSets = _make_common_var_sets(collection)
-    # print "commonVarSets:", commonVarSets
-    for varSet in commonVarSets:
-        while True:
-            psets = []
-            modelNames = []
-            now = datetime.datetime.utcnow()
-            now = now.replace(tzinfo=pytz.utc)
-            while len(psets) <= maxN:
-                q = {"compute_complete": False, "compute_started": False}
-                q.update(varSet)
-                # print "q", q
-                doc = collection.find_and_modify(query=q,
-                    update={"$set": {"compute_started": True,
-                                     "queue_date": now,
-                                     "compute_host": thisHost}},)
-                # print "doc", doc
-                if doc is None: break # no available models
-                modelName = str(doc['_id'])
-                pset = ParameterSet(modelName, **doc['pset'])
-                psets.append(pset)
-                modelNames.append(pset.name)
-            if len(psets) == 0: break # empty job queue
-            # Startup a computation: write command file and start fspsq
-            cmdTxt = "\n".join([p.command() for p in psets])+"\n"
-            if os.path.exists(commandPath): os.remove(commandPath)
-            f = open(commandPath, 'w')
-            f.write(cmdTxt)
-            f.close()
-            nModels = len(psets)
-            shellCmd = _make_shell_command(fspsqPath, commandPath, nModels, varSet)
-            print "cmd::", shellCmd
-            subprocess.call(shellCmd, shell=True)
-            # Get output data from FSPS
-            _gather_fsps_outputs(collection, modelNames)
 
 def _make_common_var_sets(c):
     """Make a list of common variable setups.
@@ -258,12 +214,62 @@ class ParameterSet(object):
         """Returns the document dictionary to insert in MongoDB."""
         return self.p
 
+class QueueRunner(object):
+    """Executes a queue of FSPS models.
+    
+    This is typically called via :meth:`FSPSLibrary.compute_models()`.
+    """
+    def __init__(self):
+        #super(QueueRunner, self).__init__()
+        pass
 
-class FSPSParser(object):
-    """Reads the mag and spectral output files."""
-    def __init__(self, arg):
-        super(FSPSParser, self).__init__()
-        self.arg = arg
+    def __call__(self, args):
+        """Executed in the pool mapping; looks for and computes models."""
+        # print "hello"
+        libname, dbname, host, port, maxN, fspsqPath, commandPath = args
+        thisHost = socket.gethostname() # hostname of current process
+        
+        # Connect to the library in MongoDB
+        connection = pymongo.Connection(host=host, port=port)
+        db = connection[dbname]
+        db.add_son_manipulator(NumpySONManipulator())
+        self.collection = db[libname]
+        
+        commonVarSets = _make_common_var_sets(self.collection)
+        # print "commonVarSets:", commonVarSets
+        for varSet in commonVarSets:
+            while True:
+                psets = []
+                modelNames = []
+                now = datetime.datetime.utcnow()
+                now = now.replace(tzinfo=pytz.utc)
+                while len(psets) <= maxN:
+                    q = {"compute_complete": False, "compute_started": False}
+                    q.update(varSet)
+                    # print "q", q
+                    doc = self.collection.find_and_modify(query=q,
+                        update={"$set": {"compute_started": True,
+                                        "queue_date": now,
+                                        "compute_host": thisHost}},)
+                    # print "doc", doc
+                    if doc is None: break # no available models
+                    modelName = str(doc['_id'])
+                    pset = ParameterSet(modelName, **doc['pset'])
+                    psets.append(pset)
+                    modelNames.append(pset.name)
+                if len(psets) == 0: break # empty job queue
+                # Startup a computation: write command file and start fspsq
+                cmdTxt = "\n".join([p.command() for p in psets])+"\n"
+                if os.path.exists(commandPath): os.remove(commandPath)
+                f = open(commandPath, 'w')
+                f.write(cmdTxt)
+                f.close()
+                nModels = len(psets)
+                shellCmd = _make_shell_command(fspsqPath, commandPath, nModels, varSet)
+                print "cmd::", shellCmd
+                subprocess.call(shellCmd, shell=True)
+                # Get output data from FSPS
+                _gather_fsps_outputs(self.collection, modelNames)
 
 class SpecParser(object):
     """Parses spectral tables generated by FSPS
