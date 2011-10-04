@@ -9,6 +9,7 @@ import cPickle as pickle
 import pytz
 import pymongo
 import numpy as np
+import matplotlib.mlab as mlab
 
 import bson
 from bson.binary import Binary
@@ -84,92 +85,157 @@ class FSPSLibrary(object):
     def count_models(self):
         return self.collection.find({}).count()
 
-def run_fspsq(args):
-    """A process for running fsps jobs."""
+class QueueRunner(object):
+    """Executes a queue of FSPS models.
     
-
-def _make_common_var_sets(c):
-    """Make a list of common variable setups.
-    
-    .. note:: This merely lists all *possible* combinations of common variable
-       configurations. There is not guarantee that there are models needing
-       computation for each configuration set.
-    
-    Parameters
-    ----------
-    
-    c : pymongo.Collection instance
-    
-    Returns
-    -------
-    
-    List of dictionaries. Each dictionary has keys representing common
-    variables: sfh, zmet, dust_type, imf_type, compute_vega_mags, redshift_colors
+    This is typically called via :meth:`FSPSLibrary.compute_models()`.
     """
-    params = ['sfh', 'zmet', 'dust_type', 'imf_type',
-        'compute_vega_mags', 'redshift_colors']
-    possibleValues = {}
-    for param in params:
-        possibleValues[param] = c.distinct("pset."+param)
-    groups = []
-    for isfh in possibleValues['sfh']:
-        for izmet in possibleValues['zmet']:
-            for idust_type in possibleValues['dust_type']:
-                for iimf_type in possibleValues['imf_type']:
-                    for ivega in possibleValues['compute_vega_mags']:
-                        for iredshift in possibleValues['redshift_colors']:
-                            groups.append({"pset.sfh":isfh,"pset.zmet":izmet,
-                                "pset.dust_type":idust_type,"pset.imf_type":iimf_type,
-                                "pset.compute_vega_mags":ivega,
-                                "pset.redshift_colors":iredshift})
-    return groups
+    def __init__(self, libname, dbname, dbhost, dbport, maxN, fspsqPath,
+            tage=None):
+        #super(QueueRunner, self).__init__()
+        self.libname = libname
+        self.dbname = dbname
+        self.dbhost = dbhost
+        self.dbport = dbport
+        self.maxN = maxN
+        self.fspsqPath = fspsqPath
 
-def _make_shell_command(fspsqPath, commandFilePath, nModels, varSet):
-    """Crafts the command for running `fspsq`, returning a string."""
-    params = ['sfh', 'zmet', 'dust_type', 'imf_type',
-        'compute_vega_mags', 'redshift_colors']
-    cmd = "%s %s %i %i %02i %i %i %i %i" % (fspsqPath, commandFilePath, nModels,
-        varSet['pset.sfh'], varSet['pset.zmet'], varSet['pset.dust_type'],
-        varSet['pset.imf_type'], varSet['pset.compute_vega_mags'],
-        varSet['pset.redshift_colors'])
-    return cmd
-
-def _gather_fsps_outputs(c, modelNames):
-    """Adds the .mag and .spec outputs for each model to MongoDB.
-    
-    .. note:: Need to propagate the spec type through here...
-    """
-    fspsDir = os.environ['SPS_HOME'] # environment variable for FSPS
-    outputDir = os.path.join(fspsDir, "OUTPUTS")
-    # print modelNames
-    for modelName in modelNames:
-        magPath = os.path.join(outputDir, modelName+".out.mags")
-        magSpec = os.path.join(outputDir, modelName+".out.spec")
-        print "ingesting", modelName
-        try:
-            npdata = ingest_output(magPath, magSpec)
-        except:
-            # Some exception in parsing the text files; skip the output
-            c.update({"_id": modelName}, {"$set": {"compute_complete": True,
-                "ingest_fail": True}})
-            print "\t", modelName, "ingest fail"
-            continue
-        npDataSmall = npdata[:1]
-        c.update({"_id": modelName}, {"$set": {"compute_complete": True}})
-        binData = Binary(pickle.dumps(npdata,-1))
-        c.update({"_id": modelName},
-            {"$set": {"np_data": {'_type': 'np.ndarray', 'data':binData}}})
-        # Remove data files
-        os.remove(magPath)
-        os.remove(magSpec)
-        # load data with pickle.load(doc['np_data']['data])
+    def __call__(self, commandPath):
+        """Executed in the pool mapping; looks for and computes models."""
+        # print "hello"
+        thisHost = socket.gethostname() # hostname of current process
         
-        # Using SON Manipulator:
-        # print c.find_one({"_id": modelName})
-        # print "type:", type(npDataSmall)
-        # c.update({"_id": modelName}, {"$set": {"np_data": npDataSmall}})
-        # print c.find_one({"_id": modelName})['np_data']
-        # print "update complete!"
+        # Connect to the library in MongoDB
+        connection = pymongo.Connection(host=self.dbhost, port=self.dbport)
+        db = connection[self.dbname]
+        db.add_son_manipulator(NumpySONManipulator())
+        self.collection = db[self.libname]
+        
+        commonVarSets = self._make_common_var_sets()
+        # print "commonVarSets:", commonVarSets
+        for varSet in commonVarSets:
+            while True:
+                psets = []
+                modelNames = []
+                now = datetime.datetime.utcnow()
+                now = now.replace(tzinfo=pytz.utc)
+                while len(psets) <= self.maxN:
+                    q = {"compute_complete": False, "compute_started": False}
+                    q.update(varSet)
+                    # print "q", q
+                    doc = self.collection.find_and_modify(query=q,
+                        update={"$set": {"compute_started": True,
+                                        "queue_date": now,
+                                        "compute_host": thisHost}},)
+                    # print "doc", doc
+                    if doc is None: break # no available models
+                    modelName = str(doc['_id'])
+                    pset = ParameterSet(modelName, **doc['pset'])
+                    psets.append(pset)
+                    modelNames.append(pset.name)
+                if len(psets) == 0: break # empty job queue
+                # Startup a computation: write command file and start fspsq
+                cmdTxt = "\n".join([p.command() for p in psets])+"\n"
+                if os.path.exists(commandPath): os.remove(commandPath)
+                f = open(commandPath, 'w')
+                f.write(cmdTxt)
+                f.close()
+                nModels = len(psets)
+                shellCmd = self._make_shell_command(self.fspsqPath,
+                        commandPath, nModels, varSet)
+                print "cmd::", shellCmd
+                subprocess.call(shellCmd, shell=True)
+                # Get output data from FSPS
+                self._gather_fsps_outputs(modelNames)
+
+
+    def _make_common_var_sets(self):
+        """Make a list of common variable setups.
+        
+        .. note:: This merely lists all *possible* combinations of common variable
+        configurations. There is not guarantee that there are models needing
+        computation for each configuration set.
+        
+        Parameters
+        ----------
+        
+        c : pymongo.Collection instance
+        
+        Returns
+        -------
+        
+        List of dictionaries. Each dictionary has keys representing common
+        variables: sfh, zmet, dust_type, imf_type, compute_vega_mags, redshift_colors
+        """
+        params = ['sfh', 'zmet', 'dust_type', 'imf_type',
+            'compute_vega_mags', 'redshift_colors']
+        possibleValues = {}
+        for param in params:
+            possibleValues[param] = self.collection.distinct("pset."+param)
+        groups = []
+        for isfh in possibleValues['sfh']:
+            for izmet in possibleValues['zmet']:
+                for idust_type in possibleValues['dust_type']:
+                    for iimf_type in possibleValues['imf_type']:
+                        for ivega in possibleValues['compute_vega_mags']:
+                            for iredshift in possibleValues['redshift_colors']:
+                                groups.append({"pset.sfh":isfh,"pset.zmet":izmet,
+                                    "pset.dust_type":idust_type,"pset.imf_type":iimf_type,
+                                    "pset.compute_vega_mags":ivega,
+                                    "pset.redshift_colors":iredshift})
+        return groups
+
+    def _make_shell_command(self, fspsqPath, commandFilePath, nModels, varSet):
+        """Crafts the command for running `fspsq`, returning a string."""
+        cmd = "%s %s %i %i %02i %i %i %i %i" % (fspsqPath, commandFilePath, nModels,
+            varSet['pset.sfh'], varSet['pset.zmet'], varSet['pset.dust_type'],
+            varSet['pset.imf_type'], varSet['pset.compute_vega_mags'],
+            varSet['pset.redshift_colors'])
+        return cmd
+
+    def _gather_fsps_outputs(self, modelNames):
+        """Adds the .mag and .spec outputs for each model to MongoDB.
+        
+        .. note:: Need to propagate the spec type through here...
+        """
+        fspsDir = os.environ['SPS_HOME'] # environment variable for FSPS
+        outputDir = os.path.join(fspsDir, "OUTPUTS")
+        # print modelNames
+        for modelName in modelNames:
+            magPath = os.path.join(outputDir, modelName+".out.mags")
+            specPath = os.path.join(outputDir, modelName+".out.spec")
+            print "Ingesting", modelName
+            #try:
+            magParser = MagParser(magPath)
+            magData = magParser.data
+            specParser = SpecParser(specPath)
+            specData = specParser.data
+            nLambda = specParser._get_nlambda()
+            # Append spectrum to mag data to get complete dataset
+            allData = mlab.rec_append_fields(magData,
+                    'spec', specData['spec'], dtypes=('spec',np.float,nLambda))
+            #except:
+            #    # Some exception in parsing the text files; skip the output
+            #    self.collection.update({"_id": modelName},
+            #            {"$set": {"compute_complete": True,
+            #            "ingest_fail": True}})
+            #    print "\t", modelName, "ingest fail"
+            #    continue
+            self.collection.update({"_id": modelName}, {"$set": {"compute_complete": True}})
+            binData = Binary(pickle.dumps(allData,-1))
+            self.collection.update({"_id": modelName},
+                {"$set": {"np_data": {'_type': 'np.ndarray', 'data':binData}}})
+            # Remove data files
+            os.remove(magPath)
+            os.remove(specPath)
+            # load data with pickle.load(doc['np_data']['data])
+            
+            # Using SON Manipulator:
+            # print c.find_one({"_id": modelName})
+            # print "type:", type(npDataSmall)
+            # c.update({"_id": modelName}, {"$set": {"np_data": npDataSmall}})
+            # print c.find_one({"_id": modelName})['np_data']
+            # print "update complete!"
 
 class ParameterSet(object):
     """An input parameter set for a FSPS model run."""
@@ -214,62 +280,6 @@ class ParameterSet(object):
         """Returns the document dictionary to insert in MongoDB."""
         return self.p
 
-class QueueRunner(object):
-    """Executes a queue of FSPS models.
-    
-    This is typically called via :meth:`FSPSLibrary.compute_models()`.
-    """
-    def __init__(self):
-        #super(QueueRunner, self).__init__()
-        pass
-
-    def __call__(self, args):
-        """Executed in the pool mapping; looks for and computes models."""
-        # print "hello"
-        libname, dbname, host, port, maxN, fspsqPath, commandPath = args
-        thisHost = socket.gethostname() # hostname of current process
-        
-        # Connect to the library in MongoDB
-        connection = pymongo.Connection(host=host, port=port)
-        db = connection[dbname]
-        db.add_son_manipulator(NumpySONManipulator())
-        self.collection = db[libname]
-        
-        commonVarSets = _make_common_var_sets(self.collection)
-        # print "commonVarSets:", commonVarSets
-        for varSet in commonVarSets:
-            while True:
-                psets = []
-                modelNames = []
-                now = datetime.datetime.utcnow()
-                now = now.replace(tzinfo=pytz.utc)
-                while len(psets) <= maxN:
-                    q = {"compute_complete": False, "compute_started": False}
-                    q.update(varSet)
-                    # print "q", q
-                    doc = self.collection.find_and_modify(query=q,
-                        update={"$set": {"compute_started": True,
-                                        "queue_date": now,
-                                        "compute_host": thisHost}},)
-                    # print "doc", doc
-                    if doc is None: break # no available models
-                    modelName = str(doc['_id'])
-                    pset = ParameterSet(modelName, **doc['pset'])
-                    psets.append(pset)
-                    modelNames.append(pset.name)
-                if len(psets) == 0: break # empty job queue
-                # Startup a computation: write command file and start fspsq
-                cmdTxt = "\n".join([p.command() for p in psets])+"\n"
-                if os.path.exists(commandPath): os.remove(commandPath)
-                f = open(commandPath, 'w')
-                f.write(cmdTxt)
-                f.close()
-                nModels = len(psets)
-                shellCmd = _make_shell_command(fspsqPath, commandPath, nModels, varSet)
-                print "cmd::", shellCmd
-                subprocess.call(shellCmd, shell=True)
-                # Get output data from FSPS
-                _gather_fsps_outputs(self.collection, modelNames)
 
 class SpecParser(object):
     """Parses spectral tables generated by FSPS
