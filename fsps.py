@@ -9,6 +9,7 @@ import cPickle as pickle
 import pytz
 import pymongo
 import numpy as np
+import numpy.lib.recfunctions as recfunctions
 import matplotlib.mlab as mlab
 
 import bson
@@ -54,19 +55,15 @@ class FSPSLibrary(object):
             `fspsq` process.
         """
         fspsqPath = os.path.join(os.getcwd(), "fspsq") # echo for debug
-        # fspsqPath = "echo"
-        args = []
-        for i in range(nThreads):
-            processorName = "processor-%i" % i
-            commandPath = processorName+".txt"
-            args.append((self.libname, self.dbname, self.host, self.port,
-                maxN, fspsqPath, commandPath))
+        commandPaths = ["processor-%i" % i for i in xrange(1, nThreads+1)]
+        queue_runner = QueueRunner(self.libname, self.dbname, self.host,
+                self.port, maxN, fspsqPath)
         # print args
         if nThreads > 1:
             pool = multiprocessing.Pool(processes=nThreads)
-            pool.map(run_fspsq, args)
+            pool.map(queue_runner, commandPaths)
         else:
-            map(run_fspsq, args)
+            map(queue_runner, commandPaths)
     
     def reset(self):
         """Drop (delete) the library.
@@ -148,7 +145,6 @@ class QueueRunner(object):
                 # Get output data from FSPS
                 self._gather_fsps_outputs(modelNames)
 
-
     def _make_common_var_sets(self):
         """Make a list of common variable setups.
         
@@ -193,7 +189,7 @@ class QueueRunner(object):
             varSet['pset.redshift_colors'])
         return cmd
 
-    def _gather_fsps_outputs(self, modelNames):
+    def _gather_fsps_outputs(self, modelNames, getMags=True, getSpec=True):
         """Adds the .mag and .spec outputs for each model to MongoDB.
         
         .. note:: Need to propagate the spec type through here...
@@ -211,9 +207,8 @@ class QueueRunner(object):
             specParser = SpecParser(specPath)
             specData = specParser.data
             nLambda = specParser._get_nlambda()
-            # Append spectrum to mag data to get complete dataset
-            allData = mlab.rec_append_fields(magData,
-                    'spec', specData['spec'], dtypes=('spec',np.float,nLambda))
+            if getMags and getSpec:
+                allData = self._splice_mag_spec_arrays(magData, specData, nLambda)
             #except:
             #    # Some exception in parsing the text files; skip the output
             #    self.collection.update({"_id": modelName},
@@ -237,48 +232,24 @@ class QueueRunner(object):
             # print c.find_one({"_id": modelName})['np_data']
             # print "update complete!"
 
-class ParameterSet(object):
-    """An input parameter set for a FSPS model run."""
-    def __init__(self, name, **kwargs):
-        if name is None:
-            self.name = str(bson.objectid.ObjectId())
-        else:
-            self.name = str(name) # name of this model
-        # Default values
-        self.p = {"compute_vega_mags":0, "dust_type":0, "imf_type":0,
-                "isoc_type":'pdva', "redshift_colors":0, "time_res_incr":2,
-                "zred":0., "zmet":1, "sfh":0, "tau":1., "const":0.,
-                "sf_start":0.,"tage":0., "fburst":0., "tburst":0., "imf1":1.3,
-                "imf2":2.3, "imf3":2.3, "vdmc":0.08, "mdave":0.5,
-                "dust_tesc":7., "dust1":0., "dust2":0., "dust_clumps":-99.,
-                "frac_nodust":0., "dust_index":-0.7, "mwr":3.1,
-                "uvb":1., "wgp1":1, "wgp2":1, "wgp3":0, "dell":0.,
-                "delt":0., "sbss":0., "fbhb":0, "pagb":1.}
-        self.knownParameters = self.p.keys()
-        # Update values with user's arguments
-        for k, v in kwargs.iteritems():
-            if k in self.knownParameters:
-                self.p[k] = v
-    
-    def command(self):
-        """Write the string for this paramter set."""
-        # These are pset variables, (aside from sfh and zmet)
-        dt = [("zred","%.2f"),("tau","%.10f"),("const","%.4f"),
-                ("sf_start","%.2f"),("tage","%.4f"),("fburst","%.4f"),
-                ("tburst","%.4f"),("imf1","%.2f"),("imf2","%.2f"),
-                ("imf3","%.2f"),("vdmc","%.2f"),("mdave","%.1f"),
-                ("dust_tesc","%.2f"),("dust1","%.6f"),("dust2","%.6f"),
-                ("dust_clumps","%.1f"),("frac_nodust","%.2f"),
-                ("dust_index","%.2f"),("mwr","%.2f"),("uvb","%.2f"),
-                ("wgp1","%i"),("wgp2","%i"),("wgp3","%i"),("dell","%.2f"),
-                ("delt","%.2f"),("sbss","%.2f"),("fbhb","%.2f"),
-                ("pagb","%.2f")]
-        cmd = str(self.name) + " " + " ".join([s % self.p[k] for (k,s) in dt])
-        return cmd
-    
-    def get_doc(self):
-        """Returns the document dictionary to insert in MongoDB."""
-        return self.p
+    def _splice_mag_spec_arrays(self, magData, specData, nLambda):
+        """Add spectrum to teh magData structured array.
+        
+        .. note:: This is done by heavy-duty copying. It'd probably be
+           much more efficient to figure out if
+           :func:`numpy.recfunctions.append_fields` can be applied here. But
+           I can't get it to work.
+        """
+        magDtype = [('age',np.float),('mass',np.float),('lbol',np.float),('sfr',np.float)]
+        magDtype += [(name,np.float) for (idx,name,comment) in FILTER_LIST]
+        dt = magDtype + [('spec',np.float,nLambda)]
+        nRows = len(magData)
+        allData = np.empty(nRows, dtype=dt)
+        for t in magDtype:
+            allData[t[0]] = magData[t[0]]
+        allData['spec'] = specData['spec']
+        print allData.dtype
+        return allData
 
 
 class SpecParser(object):
@@ -377,68 +348,50 @@ class MagParser(object):
         # NOTE that loadtxt has no compatibility with bad data; use genfromtxt
         # http://docs.scipy.org/doc/numpy/user/basics.io.genfromtxt.html
         # genfromtxt is slower; perhaps use it as a backup?
-        
 
-def ingest_output(magPath, specPath, specType='basel'):
-    """Read FSPS mag and spec output files into a numpy recarray.
-    
-    The magnitudes and spectral data are merged into a single numpy structure.
-    
-    Parameters
-    ----------
-    
-    magPath: str
-        Path to the *.mag output file.
-    specPath: str
-        Path to the *.spec output file
-    specType: str
-        Spectral library. `basti` or `miles`.
-    
-    Returns
-    -------
-    
-    A NumPy record array instance.
-    """
-    lamb = _read_wavelengths(specType)
-    nLambda = len(lamb) # length of wavelength vector
-    dt = [('age',np.float),('mass',np.float),('lbol',np.float),('sfr',np.float),
-        ('spec',np.float,(nLambda,))]
-    dt += [(name,np.float) for (idx,name,comment) in FILTER_LIST]
-    
-    # Load magnitude data
-    magData = np.loadtxt(magPath, comments="#")
-    nRows = magData.shape[0]
-    data = np.empty(nRows, dtype=dt)
-    data['age'] = magData[:,0]
-    data['mass'] = magData[:,1]
-    data['lbol'] = magData[:,2]
-    data['sfr'] = magData[:,3]
-    for (filterN,name,comment) in FILTER_LIST:
-        col = filterN + 4 -1
-        # print col, name, magData.shape
-        data[name] = magData[:,col]
-        # NOTE be careful here are older outputs may not have the complete
-        # set of outputs; perhaps allow for *fewer* filters
-    # Load Spectra
-    specData = read_spec_table(specPath, nLambda, nRows)
-    for i in xrange(nRows):
-        data['spec'][i] = specData[i]
-    return data
 
-def read_spec_table(specPath, nLambda, nRows):
-    """Makes a numpy array with each spectrum in a row. Meant to be used in
-    ingest_output; this won't give age,mass,luminosity context."""
-    f = open(specPath, 'r')
-    i = 0
-    data = np.zeros([nRows,nLambda], dtype=np.float)
-    for line in f:
-        if line[0] is not " ": continue
-        lineParts = line.split()
-        if len(lineParts) == 4: continue
-        data[i,:] = np.array(lineParts)
-        i += 1
-    f.close()
-    return data
+class ParameterSet(object):
+    """An input parameter set for a FSPS model run."""
+    def __init__(self, name, **kwargs):
+        if name is None:
+            self.name = str(bson.objectid.ObjectId())
+        else:
+            self.name = str(name) # name of this model
+        # Default values
+        self.p = {"compute_vega_mags":0, "dust_type":0, "imf_type":0,
+                "isoc_type":'pdva', "redshift_colors":0, "time_res_incr":2,
+                "zred":0., "zmet":1, "sfh":0, "tau":1., "const":0.,
+                "sf_start":0.,"tage":0., "fburst":0., "tburst":0., "imf1":1.3,
+                "imf2":2.3, "imf3":2.3, "vdmc":0.08, "mdave":0.5,
+                "dust_tesc":7., "dust1":0., "dust2":0., "dust_clumps":-99.,
+                "frac_nodust":0., "dust_index":-0.7, "mwr":3.1,
+                "uvb":1., "wgp1":1, "wgp2":1, "wgp3":0, "dell":0.,
+                "delt":0., "sbss":0., "fbhb":0, "pagb":1.}
+        self.knownParameters = self.p.keys()
+        # Update values with user's arguments
+        for k, v in kwargs.iteritems():
+            if k in self.knownParameters:
+                self.p[k] = v
+    
+    def command(self):
+        """Write the string for this paramter set."""
+        # These are pset variables, (aside from sfh and zmet)
+        dt = [("zred","%.2f"),("tau","%.10f"),("const","%.4f"),
+                ("sf_start","%.2f"),("tage","%.4f"),("fburst","%.4f"),
+                ("tburst","%.4f"),("imf1","%.2f"),("imf2","%.2f"),
+                ("imf3","%.2f"),("vdmc","%.2f"),("mdave","%.1f"),
+                ("dust_tesc","%.2f"),("dust1","%.6f"),("dust2","%.6f"),
+                ("dust_clumps","%.1f"),("frac_nodust","%.2f"),
+                ("dust_index","%.2f"),("mwr","%.2f"),("uvb","%.2f"),
+                ("wgp1","%i"),("wgp2","%i"),("wgp3","%i"),("dell","%.2f"),
+                ("delt","%.2f"),("sbss","%.2f"),("fbhb","%.2f"),
+                ("pagb","%.2f")]
+        cmd = str(self.name) + " " + " ".join([s % self.p[k] for (k,s) in dt])
+        return cmd
+    
+    def get_doc(self):
+        """Returns the document dictionary to insert in MongoDB."""
+        return self.p
 
 FILTER_LIST = [(1,'V','Johnson V (from Bessell 1990 via M. Blanton)  - this defines V=0 for the Vega system'),
         (2,"U","Johnson U (from Bessell 1990 via M. Blanton)"),
@@ -504,19 +457,6 @@ FILTER_LIST = [(1,'V','Johnson V (from Bessell 1990 via M. Blanton)  - this defi
         (62,"UVOT_W2","UVOT W2 (from Erik Hoversten, 2011)"),
         (63,"UVOT_M2","UVOT M2 (from Erik Hoversten, 2011)"),
         (64,"UVOT_W1","UVOT W1 (from Erik Hoversten, 2011)")]
-
-def _read_wavelengths(specType):
-    """Read the wavelength vector given the spectral library."""
-    fspsDir = os.environ['SPS_HOME'] # environment variable for FSPS
-    # print fspsDir
-    if specType == "basel":
-        lambdaPath = os.path.join(fspsDir,"SPECTRA","BaSeL3.1","basel.lambda")
-    elif specType == "miles":
-        lambdaPath = os.path.join(fspsDir,"SPECTRA","MILES","miles.lambda")
-    else:
-        print "spec type invalid:", specType
-    lam = np.loadtxt(lambdaPath)
-    return lam
 
 class NumpySONManipulator(SONManipulator):
     """Taken from Dan-FM's gist: https://gist.github.com/1143729"""

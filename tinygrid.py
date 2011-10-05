@@ -1,8 +1,7 @@
 """Test fspsq with a tiny grid of models--a basic burn in test case."""
 
-import fspsq
-from fspsq import FSPSLibrary
-from fspsq import ParameterSet
+from fsps import FSPSLibrary
+from fsps import ParameterSet
 
 def main():
     tinyLibrary = TinySSPGrid("tinyssp", dbname="fsps")
@@ -17,8 +16,7 @@ class TinySSPGrid(FSPSLibrary):
         """Create the model grid."""
         zmets = [1,2,3]
         for i, zmet in enumerate(zmets):
-            modelName = "model%i" % i
-            pset = ParameterSet(modelName, sfh=0, zmet=zmet)
+            pset = ParameterSet(None, sfh=0, zmet=zmet)
             self.register_pset(pset)
             
 if __name__ == '__main__':
