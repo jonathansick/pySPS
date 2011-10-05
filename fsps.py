@@ -88,8 +88,6 @@ class FSPSLibrary(object):
         """Create an HDF5 table that combines outputs from models
         in the library.
         """
-<<<<<<< HEAD
-=======
         query.update({"compute_complete":True,
             "np_data": {"$exists": 1}})
         docs = self.collection.find(query) # , limit=2
@@ -111,16 +109,11 @@ class FSPSLibrary(object):
         specCols = [('spec',np.float,SpecParser.nlambda(specType))]
         tableDtype = np.dtype(psetCols+sfhCols+miscCols+magCols+specCols)
 
->>>>>>> master
         if os.path.exists(outputPath) and clobber:
             os.remove(outputPath)
         title = os.path.splitext(os.path.basename(outputPath))[0]
         h5file = tables.openFile(outputPath, mode="w", title=title)
-<<<<<<< HEAD
-        table = h5file.createTable("/", 'mags', self._mag_table_def,
-=======
         table = h5file.createTable("/", 'models', tableDtype,
->>>>>>> master
                 "Model Output Table")
         print h5file
         for doc in docs:
