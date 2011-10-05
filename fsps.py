@@ -223,6 +223,9 @@ class QueueRunner(object):
                 # Get output data from FSPS
                 self._gather_fsps_outputs(modelNames)
 
+        # Delete command file when done
+        os.remove(commandPath)
+
     def _make_common_var_sets(self):
         """Make a list of common variable setups.
         
