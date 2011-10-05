@@ -8,6 +8,7 @@ def main():
     tinyLibrary.reset()
     tinyLibrary.generate_grid()
     tinyLibrary.compute_models(nThreads=1)
+    tinyLibrary.create_table("tiny_table.h5")
 
 class TinySSPGrid(FSPSLibrary):
     """A small grid SSPs for three metallicities."""
