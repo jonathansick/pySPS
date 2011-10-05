@@ -9,7 +9,8 @@ import cPickle as pickle
 import pytz
 import pymongo
 import numpy as np
-import numpy.lib.recfunctions as recfunctions
+#import numpy.lib.recfunctions as recfunctions
+import tables # HDF5
 import matplotlib.mlab as mlab
 
 import bson
@@ -83,14 +84,16 @@ class FSPSLibrary(object):
         return self.collection.find({}).count()
 
     def create_table(self, outputPath, query={}, tage=None,
-            isocType="pdva", specType="basel"):
+            isocType="pdva", specType="basel", clobber=True):
         """Create an HDF5 table that combines outputs from models
         in the library.
         """
-        if os.path.exists(outputPath): os.remove(outputPath)
+        if os.path.exists(outputPath) and clobber:
+            os.remove(outputPath)
         title = os.path.splitext(os.path.basename(outputPath))[0]
         h5file = tables.openFile(outputPath, mode="w", title=title)
-        table = h5file.createTable("/", 'mags', MagTableDef, "Mag Model Table")
+        table = h5file.createTable("/", 'mags', self._mag_table_def,
+                "Model Output Table")
         print h5file
         docs = self.collection.find({"compute_complete":True,
             "np_data": {"$exists": 1}}) # , limit=2
@@ -137,6 +140,12 @@ class FSPSLibrary(object):
         #mlab.recs_join(key, name, rows, jointype='outer', missing=0.0, postfixes=None)
         h5file.flush()
         h5file.close()
+
+    @property
+    def _get_table_def(self):
+        ccDtype = np.dtype([('c1',np.int),('c2',np.int),('xi',np.int),
+            ('yi',np.int),('ml',np.float)])
+        return ccDtype
 
 class QueueRunner(object):
     """Executes a queue of FSPS models.
@@ -513,6 +522,13 @@ FILTER_LIST = [(1,'V','Johnson V (from Bessell 1990 via M. Blanton)  - this defi
         (62,"UVOT_W2","UVOT W2 (from Erik Hoversten, 2011)"),
         (63,"UVOT_M2","UVOT M2 (from Erik Hoversten, 2011)"),
         (64,"UVOT_W1","UVOT W1 (from Erik Hoversten, 2011)")]
+
+def get_metallicity_LUT(isocType, specType):
+    """docstring for as_metallicity"""
+    if isocType=="pdva" and specType=="basel":
+        return (0.0002, 0.0003, 0.0004, 0.0005,0.0006,0.0008,0.0010,
+            0.0012,0.0016,0.0020,0.0025,0.0031,0.0039,0.0049,0.0061,
+            0.0077,0.0096,0.0120,0.0150,0.0190,0.0240,0.0300)
 
 class NumpySONManipulator(SONManipulator):
     """Taken from Dan-FM's gist: https://gist.github.com/1143729"""
