@@ -248,7 +248,6 @@ class QueueRunner(object):
         for t in magDtype:
             allData[t[0]] = magData[t[0]]
         allData['spec'] = specData['spec']
-        print allData.dtype
         return allData
 
 
@@ -343,6 +342,7 @@ class MagParser(object):
         dt = [('age',np.float),('mass',np.float),('lbol',np.float),('sfr',np.float)]
         dt += [(name,np.float) for (idx,name,comment) in FILTER_LIST]
         self.data = np.loadtxt(magPath, comments="#", dtype=dt)
+        self.data = np.atleast_1d(self.data) # to protect against 1 age results
         # NOTE be careful here as older outputs may not have the complete
         # set of outputs; perhaps allow for *fewer* filters
         # NOTE that loadtxt has no compatibility with bad data; use genfromtxt
