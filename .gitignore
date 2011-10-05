@@ -1,0 +1,7 @@
+*.pyc
+*.mags
+*.spec
+.DS_STORE
+doc/_build/
+fsps/
+fspsq
