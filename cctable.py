@@ -69,6 +69,64 @@ class CCTable(object):
             c = np.array([x[colourID] for x in self.models])
         return c
 
+    def mass_light_table(self):
+        """Adds a median M/L_bol column to the table."""
+        modelML = np.array([x['mass']/x['lbol'] for x in self.models],
+                dtype=np.float)
+        medianMLs = np.zeros(self.cells.nrows, dtype=np.float)
+        sigmaMLs = np.zeros(self.cells.nrows, dtype=np.float)
+        for i in xrange(self.cells.nrows):
+            ind = np.where(self.membership == i)[0]
+            if len(ind) > 0:
+                sample = modelML[ind]
+                medianML = np.median(sample)
+                sigmaML = np.std(sample)
+                medianMLs[i] = medianML
+                sigmaMLs[i] = sigmaML
+            else:
+                medianMLs[i] = np.nan
+                sigmaMLs[i] = np.nan
+        self._append_cell_statistics("ML_bol", medianMLs, sigmaMLs)
+
+    def _append_cell_statistics(self, name, medianArray, sigmaArray):
+        """Appends colums to the cell table for the median value and its
+        standard deviation"""
+        stdName = name+"_std"
+        # Get a description of table in dictionary format
+        dtype = self.cells.description._v_colObjects
+        dtype2 = dtype.copy()
+
+        # Add a column to description
+        dtype[name] = tables.Float64Col(dflt=0.)
+        dtype[stdName] = tables.Float64Col(dflt=0.)
+
+        # Create a new table with the new description
+        table2 = self.h5.createTable(self.group, 'cells2', dtype2, "Cell Data")
+        # Filters(1)
+
+        # Copy the user attributes
+        self.cells.attrs._f_copy(table2)
+
+        # Fill the rows of new table with default values
+        for i in xrange(self.cells.nrows):
+            table2.row.append()
+        # Flush the rows to disk
+        table2.flush()
+
+        # Copy the columns of source table to destination
+        for col in dtype:
+            getattr(table2.cols, col)[:] = getattr(self.cells.cols, col)[:]
+
+        # Fill the new column
+        table2.cols[name][:] = medianArray
+        table2.cols[stdName][:] = sigmaArray
+
+        # Remove the original table
+        self.cells.remove()
+
+        # Move table2 to table
+        table2.move(self.group,'cells')
+
 def griddata(x, y, binsize=0.01):
     """
     Place unevenly spaced 2D data on a grid by 2D binning (nearest
