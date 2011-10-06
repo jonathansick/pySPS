@@ -12,6 +12,9 @@ History
 import numpy as np
 import tables # pytables for HDF5
 
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+
 def main():
     pass
 
@@ -37,6 +40,16 @@ class CCTable(object):
         self.membership = None
         self.xgrid = None
         self.ygrid = None
+
+    def open(self, name):
+        """Opens an existing colour-colour table stored in the HDF5 document."""
+        if name not in self.h5.root:
+            assert "%s does not exist in %s " % (name, self.modelTablePath)
+        self.group = getattr(self.h5.root, name)
+        self.cells = getattr(self.group, "cells")
+        self.membership = getattr(self.group, "membership")
+        self.xgrid = getattr(self.group, "xgrid")
+        self.ygrid = getattr(self.group, "ygrid")
 
     def make(self, name, xColourID, yColourID, binsize=0.05, clobber=False):
         """docstring for make"""
@@ -219,7 +232,18 @@ def griddata(x, y, binsize=0.01):
 
     return tbl, membership, xGrid, yGrid
 
+class CCPlot(object):
+    """Makes plots of colour-colour look up tables."""
+    def __init__(self, modelTablePath, ccName):
+        super(CCPlot, self).__init__()
+        self.modelTablePath = modelTablePath
+        self.ccName = ccName
 
+        ccTable = None
+
+    def plot_cc_median(self, ax, xLabel, yLabel, zLabel):
+        """Plots the median value colour-colour grid in the provided axes."""
+        pass
 
 if __name__ == '__main__':
     main()

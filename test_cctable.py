@@ -10,9 +10,10 @@ def main():
     #library.compute_models(nThreads=6, maxN=100)
     #library.create_table("test_cctable.h5", clobber=True)
     ccTable = cctable.CCTable("test_cctable.h5")
-    ccTable.make("megacam_gi_iK", ("MegaCam_g","MegaCam_i"),
-            ("MegaCam_i","TMASS_Ks"), binsize=0.05, clobber=True)
-    ccTable.mass_light_table()
+    #ccTable.make("megacam_gi_iK", ("MegaCam_g","MegaCam_i"),
+    #        ("MegaCam_i","TMASS_Ks"), binsize=0.05, clobber=True)
+    #ccTable.mass_light_table()
+    ccTable.open("megacam_gi_iK")
 
 
 class MonteCarloLibrary(fsps.FSPSLibrary):
