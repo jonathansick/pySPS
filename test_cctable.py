@@ -4,12 +4,14 @@ import cctable
 import fsps
 
 def main():
-    library = MonteCarloLibrary("test_cctable")
-    library.reset()
-    library.define_samples(n=10)
-    library.compute_models(nThreads=1, maxN=100)
-    library.create_table("test_cctable.h5", clobber=True)
+    #library = MonteCarloLibrary("test_cctable")
+    #library.reset()
+    #library.define_samples(n=1000)
+    #library.compute_models(nThreads=6, maxN=100)
+    #library.create_table("test_cctable.h5", clobber=True)
     ccTable = cctable.CCTable("test_cctable.h5")
+    ccTable.make("megacam_gi_iK", ("MegaCam_g","MegaCam_i"),
+            ("MegaCam_i","TMASS_Ks"), binsize=0.05, clobber=True)
 
 
 class MonteCarloLibrary(fsps.FSPSLibrary):

@@ -41,13 +41,21 @@ class CCTable(object):
     def make(self, name, xColourID, yColourID, binsize=0.05, clobber=False):
         """docstring for make"""
         if name in self.h5.root and clobber:
-            self.h5.root[name]._f_remove()
+            print "clobbering %s"%name, getattr(self.h5.root, name)
+            getattr(self.h5.root, name)._f_remove(recursive=True)
         # Create a new node for this Colour-Colour grid table
         self.group = self.h5.createGroup("/", name, title='%s CC Table' % name)
         # Bin by colours
         xc = self._compute_colours(xColourID)
         yc = self._compute_colours(yColourID)
         _tbl, _membership, _xGrid, _yGrid = griddata(xc, yc, binsize=0.05)
+        print "axis grids:", len(_xGrid), len(_yGrid)
+        print _xGrid
+        print _yGrid
+        print "membership",
+        print _membership
+        print "cells"
+        print _tbl
         # Add the table and membership/xgrid/ygrid arrays
         tblDtype = np.dtype([('yi',np.int),('xi',np.int),
             ('x',np.float),('y',np.float),('n',np.int)])
@@ -65,6 +73,9 @@ class CCTable(object):
         """Extract a colour from the model table."""
         if type(colourID) is not str:
             c = np.array([x[colourID[0]]-x[colourID[1]] for x in self.models])
+            print colourID[0], np.array([x[colourID[0]] for x in self.models])
+            print colourID[1], np.array([x[colourID[1]] for x in self.models])
+            print colourID[0],colourID[1], c
         else:
             c = np.array([x[colourID] for x in self.models])
         return c
@@ -184,10 +195,10 @@ def griddata(x, y, binsize=0.01):
             xc = xi[row, col]    # x coordinate.
             yc = yi[row, col]    # y coordinate.
 
-            tbl['yi'] = row
-            tbl['xi'] = col
-            tbl['y'] = yc
-            tbl['x'] = xc
+            tbl[k]['yi'] = row
+            tbl[k]['xi'] = col
+            tbl[k]['y'] = yc
+            tbl[k]['x'] = xc
 
             # find the position that xc and yc correspond to.
             posx = np.abs(x - xc)
@@ -195,7 +206,7 @@ def griddata(x, y, binsize=0.01):
             ibin = np.logical_and(posx < binsize/2., posy < binsize/2.)
             ind  = np.where(ibin == True)[0]
 
-            tbl['n'] = len(ind)
+            tbl[k]['n'] = len(ind)
             membership[ind] = k
 
             k += 1
