@@ -17,7 +17,7 @@ class TinySSPGrid(FSPSLibrary):
         """Create the model grid."""
         zmets = [1,2,3]
         for i, zmet in enumerate(zmets):
-            pset = ParameterSet(None, sfh=0, zmet=zmet)
+            pset = ParameterSet(None, sfh=1, zmet=zmet)
             self.register_pset(pset)
             
 if __name__ == '__main__':

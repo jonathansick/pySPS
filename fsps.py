@@ -360,18 +360,18 @@ class SpecParser(object):
         
         f = open(specPath, 'r')
         allLines = f.readlines()
-        nRows = int(allLines[8])
+        nRows, nLambda = [int(a) for a in allLines[8].split()]
 
         dtype = [('age',np.float),('mass',np.float),('lbol',np.float),
                 ('sfr',np.float),('spec',np.float,nLambda)]
         labelCols = ('age','mass','lbol','sfr')
         self.data = np.zeros(nRows, dtype=dtype)
         for i in xrange(nRows):
-            iLabel = 9 + i*2
+            iLabel = 10 + i*2
             iSpec = iLabel + 1
             for c,x in zip(labelCols, allLines[iLabel].split()):
                 self.data[c][i] = float(x)
-            spec = [float(x) for x in allLines[iSpec].split()]
+            spec = np.array([float(x) for x in allLines[iSpec].split()])
             self.data['spec'][i] = spec
         f.close()
     
@@ -379,9 +379,9 @@ class SpecParser(object):
     def nlambda(cls, specType):
         """Get the number of wavelengths expected in this spectrum."""
         if specType == 'basel':
-            return 1221
+            return 1963 # as of v2.3
         elif specType == 'miles':
-            return 4222
+            return 4222 # FIXME for v2.3
         else:
             assert "spec type invalid:", specType
 
