@@ -87,8 +87,11 @@ class CCTable(object):
         medianMLs = np.zeros(self.cells.nrows, dtype=np.float)
         sigmaMLs = np.zeros(self.cells.nrows, dtype=np.float)
         for i in xrange(self.cells.nrows):
-            ind = np.where(self.membership == i)[0]
-            if len(ind) > 0:
+            print self.membership
+            print np.where(self.membership[:] == i)[0]
+            ind = np.where(self.membership[:] == i)[0]
+            if len(ind) > 3:
+                print "Well populated", len(ind), ind
                 sample = modelML[ind]
                 medianML = np.median(sample)
                 sigmaML = np.std(sample)
@@ -97,6 +100,9 @@ class CCTable(object):
             else:
                 medianMLs[i] = np.nan
                 sigmaMLs[i] = np.nan
+        print "Median columns:"
+        print medianMLs
+        print sigmaMLs
         self._append_cell_statistics("ML_bol", medianMLs, sigmaMLs)
 
     def _append_cell_statistics(self, name, medianArray, sigmaArray):
@@ -108,8 +114,8 @@ class CCTable(object):
         dtype2 = dtype.copy()
 
         # Add a column to description
-        dtype[name] = tables.Float64Col(dflt=0.)
-        dtype[stdName] = tables.Float64Col(dflt=0.)
+        dtype2[name] = tables.Float64Col(dflt=0.)
+        dtype2[stdName] = tables.Float64Col(dflt=0.)
 
         # Create a new table with the new description
         table2 = self.h5.createTable(self.group, 'cells2', dtype2, "Cell Data")
@@ -129,8 +135,8 @@ class CCTable(object):
             getattr(table2.cols, col)[:] = getattr(self.cells.cols, col)[:]
 
         # Fill the new column
-        table2.cols[name][:] = medianArray
-        table2.cols[stdName][:] = sigmaArray
+        getattr(table2.cols, name)[:] = medianArray
+        getattr(table2.cols, stdName)[:] = sigmaArray
 
         # Remove the original table
         self.cells.remove()
@@ -212,6 +218,8 @@ def griddata(x, y, binsize=0.01):
             k += 1
 
     return tbl, membership, xGrid, yGrid
+
+
 
 if __name__ == '__main__':
     main()

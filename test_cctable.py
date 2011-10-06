@@ -12,6 +12,7 @@ def main():
     ccTable = cctable.CCTable("test_cctable.h5")
     ccTable.make("megacam_gi_iK", ("MegaCam_g","MegaCam_i"),
             ("MegaCam_i","TMASS_Ks"), binsize=0.05, clobber=True)
+    ccTable.mass_light_table()
 
 
 class MonteCarloLibrary(fsps.FSPSLibrary):
