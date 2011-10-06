@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    fsps
+   filters
 
 Indices and tables
 ==================
