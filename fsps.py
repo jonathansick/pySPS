@@ -97,7 +97,7 @@ class FSPSLibrary(object):
         # be able to use any pset columns, any set of mags, and the spectra
         #magNames = ['TMASS_J','TMASS_H','TMASS_Ks','MegaCam_u','MegaCam_g',
         #        'MegaCam_r','MegaCam_i','MegaCam_z','GALEX_NUV','GALEX_FUV']
-        magCols = [(s,np.float) for (i,s,c) in FILTER_LIST]
+        magCols = [(s,np.float,) for (i,s,c) in FILTER_LIST]
         #magCols = [(s,np.float) for s in magNames]
         psetCols = [('dust_type',np.int),('imf_type',np.int),('sfh',np.int),
                 ('tau',np.float),('const',np.float),('sf_start',np.float),
@@ -107,7 +107,8 @@ class FSPSLibrary(object):
                 ('sfr',np.float)]
         miscCols = [('Z',np.float)] # metallicity, taken from zmet look-up-table
         specCols = [('spec',np.float,SpecParser.nlambda(specType))]
-        tableDtype = np.dtype(psetCols+sfhCols+miscCols+magCols+specCols)
+        allCols = psetCols+sfhCols+miscCols+magCols+specCols
+        tableDtype = np.dtype(allCols)
 
         if os.path.exists(outputPath) and clobber:
             os.remove(outputPath)
@@ -136,9 +137,6 @@ class FSPSLibrary(object):
                 extraNames.append(cName)
                 extraArrays.append(pArray)
             npDataAll = mlab.rec_append_fields(npData, extraNames, extraArrays)
-            #print "npDataAll:", npDataAll
-            #print "npDataAll dtype:", npDataAll.dtype
-            print npData['age']
 
             # Trim the recarray to just the desired fields
             #npDataTrim = mlab.rec_keep_fields(npDataAll,
@@ -152,9 +150,16 @@ class FSPSLibrary(object):
                 row = np.atleast_1d(np.array(npDataAll[i], copy=True))
                 table.append(row)
             else:
-                table.append(npDataAll)
-        for row in table:
-            print row['age']
+                #table.append(npDataAll) # should work but corrupts data
+                row = table.row
+                for i in xrange(nRows):
+                    print "row", i
+                    for x in allCols:
+                        name = x[0]
+                        print name, npDataAll[i][name]
+                        row[name] = npDataAll[i][name]
+                    row.append()
+        table.flush()
         h5file.flush()
         h5file.close()
 
