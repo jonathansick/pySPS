@@ -75,6 +75,8 @@ class CCTable(object):
         self.cells = self.h5.createTable(self.group, 'cells', tblDtype, 'Cell Data')
         self.cells.append(_tbl)
         self.cells.flush()
+        print "self.cells has rows:", self.cells.nrows
+        print len(self.cells)
         # Add membership vector
         self.membership = self.h5.createArray(self.group, 'membership',
                 _membership, "Membership of models in cells")
@@ -253,10 +255,12 @@ class CCPlot(object):
         """Plots the median value colour-colour grid in the provided axes."""
         x = self.ccTable.xgrid
         y = self.ccTable.ygrid
+        print "nx", len(x), "ny", len(y)
         extent = [min(x),max(x),min(y),max(y)]
+        print "extent:", extent
         grid = self._make_image(self.kind)
-        im = ax.imshow(grid, cmap=mpl.cm.jet, aspect='equal', extent=extent,
-            interpolation='nearest', origin='lower')
+        im = ax.imshow(grid, cmap=mpl.cm.jet, extent=extent,
+            interpolation='nearest', origin='lower') # , aspect='equal'
         cbar = fig.colorbar(mappable=im, cax=None, ax=ax, orientation='vertical',
             fraction=0.1, pad=0.02, shrink=0.75,)
         cbar.set_label(zLabel)
@@ -265,8 +269,8 @@ class CCPlot(object):
 
     def _make_image(self, colName):
         """`colName` is the name of the column in the colour-colour table."""
-        xi = np.array([x['xi'] for x in self.ccTable.cells], dtype=np.int)
-        yi = np.array([x['yi'] for x in self.ccTable.cells], dtype=np.int)
+        xi = np.array([x['xi'] for x in self.ccTable.cells.iterrows()], dtype=np.int)
+        yi = np.array([x['yi'] for x in self.ccTable.cells.iterrows()], dtype=np.int)
         vals = np.array([x[colName] for x in self.ccTable.cells], dtype=np.float)
         nrows = len(yi)
         ncols = len(xi)
