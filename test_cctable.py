@@ -4,16 +4,20 @@ import cctable
 import fsps
 
 def main():
-    #library = MonteCarloLibrary("test_cctable")
+    library = MonteCarloLibrary("test_cctable")
     #library.reset()
-    #library.define_samples(n=1000)
-    #library.compute_models(nThreads=6, maxN=100)
-    #library.create_table("test_cctable.h5", clobber=True)
+    library.define_samples(n=50000)
+    library.compute_models(nThreads=6, maxN=100)
+    library.create_table("test_cctable.h5", clobber=True)
     ccTable = cctable.CCTable("test_cctable.h5")
-    #ccTable.make("megacam_gi_iK", ("MegaCam_g","MegaCam_i"),
-    #        ("MegaCam_i","TMASS_Ks"), binsize=0.05, clobber=True)
-    #ccTable.mass_light_table()
-    ccTable.open("megacam_gi_iK")
+    ccTable.make("megacam_gi_iK", ("MegaCam_g","MegaCam_i"),
+            ("MegaCam_i","TMASS_Ks"), binsize=0.05, clobber=True)
+    ccTable.mass_light_table()
+    #ccTable.open("megacam_gi_iK")
+
+    plot = cctable.CCPlot(ccTable, "ML_bol")
+    plot.plot("ml_grid", r"$g^\prime-i^\prime$", r"$i^\prime-K_s$",
+            r"$\log_{10} M/L_\mathrm{bol}$")
 
 
 class MonteCarloLibrary(fsps.FSPSLibrary):

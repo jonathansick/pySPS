@@ -234,16 +234,47 @@ def griddata(x, y, binsize=0.01):
 
 class CCPlot(object):
     """Makes plots of colour-colour look up tables."""
-    def __init__(self, modelTablePath, ccName):
+    def __init__(self, ccTable, kind):
         super(CCPlot, self).__init__()
-        self.modelTablePath = modelTablePath
-        self.ccName = ccName
+        self.ccTable = ccTable
+        self.kind = kind # name fo column with median quantity
 
-        ccTable = None
+    def plot(self, plotPath, xLabel, yLabel, unitLabel):
+        """General-purpose plot of median value, RMS and bin counts."""
+        fig = plt.figure(figsize=(4,8))
+        axMed = fig.add_subplot(311)
+        axRMS = fig.add_subplot(312)
+        axN = fig.add_subplot(313)
+        
+        self.plot_cc_median(axMed, fig, xLabel, yLabel, unitLabel)
+        fig.savefig(plotPath+".pdf", format="pdf")
 
-    def plot_cc_median(self, ax, xLabel, yLabel, zLabel):
+    def plot_cc_median(self, ax, fig, xLabel, yLabel, zLabel):
         """Plots the median value colour-colour grid in the provided axes."""
-        pass
+        x = self.ccTable.xgrid
+        y = self.ccTable.ygrid
+        extent = [min(x),max(x),min(y),max(y)]
+        grid = self._make_image(self.kind)
+        im = ax.imshow(grid, cmap=mpl.cm.jet, aspect='equal', extent=extent,
+            interpolation='nearest', origin='lower')
+        cbar = fig.colorbar(mappable=im, cax=None, ax=ax, orientation='vertical',
+            fraction=0.1, pad=0.02, shrink=0.75,)
+        cbar.set_label(zLabel)
+        ax.set_xlabel(xLabel)
+        ax.set_ylabel(yLabel)
+
+    def _make_image(self, colName):
+        """`colName` is the name of the column in the colour-colour table."""
+        xi = np.array([x['xi'] for x in self.ccTable.cells], dtype=np.int)
+        yi = np.array([x['yi'] for x in self.ccTable.cells], dtype=np.int)
+        vals = np.array([x[colName] for x in self.ccTable.cells], dtype=np.float)
+        nrows = len(yi)
+        ncols = len(xi)
+        grid = np.zeros([nrows,ncols], dtype=np.float)
+        for x, y, v in zip(xi, yi, vals):
+            grid[y,x] = v
+        return grid
+
 
 if __name__ == '__main__':
     main()
