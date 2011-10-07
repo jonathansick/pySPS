@@ -136,7 +136,9 @@ class FSPSLibrary(object):
                 extraNames.append(cName)
                 extraArrays.append(pArray)
             npDataAll = mlab.rec_append_fields(npData, extraNames, extraArrays)
-            print "npDataAll dtype:", npDataAll.dtype
+            #print "npDataAll:", npDataAll
+            #print "npDataAll dtype:", npDataAll.dtype
+            print npData['age']
 
             # Trim the recarray to just the desired fields
             #npDataTrim = mlab.rec_keep_fields(npDataAll,
@@ -151,6 +153,8 @@ class FSPSLibrary(object):
                 table.append(row)
             else:
                 table.append(npDataAll)
+        for row in table:
+            print row['age']
         h5file.flush()
         h5file.close()
 
@@ -302,8 +306,9 @@ class QueueRunner(object):
             self.collection.update({"_id": modelName},
                 {"$set": {"np_data": {'_type': 'np.ndarray', 'data':binData}}})
             # Remove data files
-            os.remove(magPath)
-            os.remove(specPath)
+            #os.remove(magPath)
+            #os.remove(specPath)
+
             # load data with pickle.load(doc['np_data']['data])
             
             # Using SON Manipulator:
