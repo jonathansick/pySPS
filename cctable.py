@@ -8,7 +8,7 @@ History
 2011-10-05 - Created by Jonathan Sick
 
 """
-
+import pyfits
 import numpy as np
 import tables # pytables for HDF5
 
@@ -43,6 +43,7 @@ class CCTable(object):
 
     def open(self, name):
         """Opens an existing colour-colour table stored in the HDF5 document."""
+        self.name = name
         if name not in self.h5.root:
             assert "%s does not exist in %s " % (name, self.modelTablePath)
         self.group = getattr(self.h5.root, name)
@@ -53,6 +54,7 @@ class CCTable(object):
 
     def make(self, name, xColourID, yColourID, binsize=0.05, clobber=False):
         """docstring for make"""
+        self.name = name
         if name in self.h5.root and clobber:
             print "clobbering %s"%name, getattr(self.h5.root, name)
             getattr(self.h5.root, name)._f_remove(recursive=True)
@@ -75,6 +77,7 @@ class CCTable(object):
         self.cells = self.h5.createTable(self.group, 'cells', tblDtype, 'Cell Data')
         self.cells.append(_tbl)
         self.cells.flush()
+        self.h5.flush()
         print "self.cells has rows:", self.cells.nrows
         print len(self.cells)
         # Add membership vector
@@ -97,8 +100,17 @@ class CCTable(object):
 
     def mass_light_table(self):
         """Adds a median M/L_bol column to the table."""
-        modelML = np.array([x['mass']/x['lbol'] for x in self.models],
-                dtype=np.float)
+        massArray = []
+        LArray = []
+        for x in self.models:
+            massArray.append(x['mass'])
+            LArray.append(x['lbol'])
+        massArray = np.array(massArray)
+        LArray = np.array(LArray)
+        modelML = np.array(massArray / LArray)
+        #modelML = np.array(modelMLs, dtype=np.float)
+        #modelML = np.array([x['mass']/x['lbol'] for x in self.models],
+        #        dtype=np.float)
         medianMLs = np.zeros(self.cells.nrows, dtype=np.float)
         sigmaMLs = np.zeros(self.cells.nrows, dtype=np.float)
         for i in xrange(self.cells.nrows):
@@ -108,6 +120,7 @@ class CCTable(object):
             if len(ind) > 3:
                 print "Well populated", len(ind), ind
                 sample = modelML[ind]
+                sample = sample[np.isfinite(sample)]
                 medianML = np.median(sample)
                 sigmaML = np.std(sample)
                 medianMLs[i] = medianML
@@ -158,6 +171,9 @@ class CCTable(object):
 
         # Move table2 to table
         table2.move(self.group,'cells')
+
+        self.h5.flush()
+        self.open(self.name)
 
 def griddata(x, y, binsize=0.01):
     """
@@ -249,6 +265,8 @@ class CCPlot(object):
         axN = fig.add_subplot(313)
         
         self.plot_cc_median(axMed, fig, xLabel, yLabel, unitLabel)
+        self.plot_cc_rms(axRMS, fig, xLabel, yLabel, unitLabel)
+        self.plot_cc_count(axN, fig, xLabel, yLabel, r"$N$")
         fig.savefig(plotPath+".pdf", format="pdf")
 
     def plot_cc_median(self, ax, fig, xLabel, yLabel, zLabel):
@@ -259,25 +277,91 @@ class CCPlot(object):
         extent = [min(x),max(x),min(y),max(y)]
         print "extent:", extent
         grid = self._make_image(self.kind)
-        im = ax.imshow(grid, cmap=mpl.cm.jet, extent=extent,
-            interpolation='nearest', origin='lower') # , aspect='equal'
+        im = ax.imshow(grid, cmap=mpl.cm.jet, extent=extent, vmin=-3., vmax=0.,
+            interpolation='nearest', origin='lower', aspect='equal') # , aspect='equal'
         cbar = fig.colorbar(mappable=im, cax=None, ax=ax, orientation='vertical',
             fraction=0.1, pad=0.02, shrink=0.75,)
         cbar.set_label(zLabel)
         ax.set_xlabel(xLabel)
         ax.set_ylabel(yLabel)
 
+    def plot_cc_rms(self, ax, fig, xLabel, yLabel, zLabel):
+        """Plots the median value colour-colour grid in the provided axes."""
+        x = self.ccTable.xgrid
+        y = self.ccTable.ygrid
+        print "nx", len(x), "ny", len(y)
+        extent = [min(x),max(x),min(y),max(y)]
+        print "extent:", extent
+        grid = self._make_image(self.kind+"_std")
+        im = ax.imshow(grid, cmap=mpl.cm.jet, extent=extent,
+            interpolation='nearest', origin='lower',aspect='equal') # , aspect='equal'
+        cbar = fig.colorbar(mappable=im, cax=None, ax=ax, orientation='vertical',
+            fraction=0.1, pad=0.02, shrink=0.75,)
+        cbar.set_label(zLabel)
+        ax.set_xlabel(xLabel)
+        ax.set_ylabel(yLabel)
+
+    def plot_cc_count(self, ax, fig, xLabel, yLabel, zLabel):
+        """Plots the number of models in the colour-colour grid in the provided axes."""
+        x = self.ccTable.xgrid
+        y = self.ccTable.ygrid
+        print "nx", len(x), "ny", len(y)
+        extent = [min(x),max(x),min(y),max(y)]
+        print "extent:", extent
+        grid = self._make_count_image()
+        print "count shape", grid.shape
+        print grid.min(), grid.max()
+        grid = grid.astype(int)
+        print grid.dtype
+        im = ax.imshow(grid, cmap=mpl.cm.jet, extent=extent, vmin=0, vmax=grid.max(),
+            interpolation='nearest', origin='lower',aspect='equal') # , aspect='equal'
+        cbar = fig.colorbar(mappable=im, cax=None, ax=ax, orientation='vertical',
+            fraction=0.1, pad=0.02, shrink=0.75,)
+        cbar.set_label(zLabel)
+        ax.set_xlabel(xLabel)
+        ax.set_ylabel(yLabel)
+
+        pyfits.writeto("test.fits", grid, clobber=True)
+
     def _make_image(self, colName):
         """`colName` is the name of the column in the colour-colour table."""
         xi = np.array([x['xi'] for x in self.ccTable.cells.iterrows()], dtype=np.int)
         yi = np.array([x['yi'] for x in self.ccTable.cells.iterrows()], dtype=np.int)
         vals = np.array([x[colName] for x in self.ccTable.cells], dtype=np.float)
-        nrows = len(yi)
-        ncols = len(xi)
+        print colName, min(vals), max(vals)
+        nrows = yi.max() + 1
+        ncols = xi.max() + 1
         grid = np.zeros([nrows,ncols], dtype=np.float)
         for x, y, v in zip(xi, yi, vals):
             grid[y,x] = v
         return grid
+    
+    def _make_count_image(self):
+        """`colName` is the name of the column in the colour-colour table."""
+        xi = np.array([x['xi'] for x in self.ccTable.cells.iterrows()], dtype=np.int)
+        yi = np.array([x['yi'] for x in self.ccTable.cells.iterrows()], dtype=np.int)
+        vals = np.array([x['n'] for x in self.ccTable.cells], dtype=np.int)
+        print "cells counts", vals
+        print min(vals), max(vals)
+        nrows = yi.max() + 1
+        ncols = xi.max() + 1
+        grid = np.zeros([nrows,ncols], dtype=np.int)
+        for x, y, v in zip(xi, yi, vals):
+            grid[y,x] = v
+        print grid
+        print grid.shape
+        print type(grid)
+        #print "N", min(grid), max(grid)
+        #grid[grid < 3] = np.nan
+        return grid
+
+    def hist(self, plotPath):
+        vals = np.array([x[self.kind] for x in self.ccTable.cells], dtype=np.float)
+        vals = np.nan_to_num(vals)
+        fig = plt.figure(figsize=(4,3))
+        ax = fig.add_subplot(111)
+        ax.hist(vals, bins=100)
+        fig.savefig(plotPath+".pdf", format="pdf")
 
 
 if __name__ == '__main__':

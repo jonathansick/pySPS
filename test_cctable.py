@@ -4,41 +4,44 @@ import cctable
 import fsps
 
 def main():
-    second_try()
-    #library = MonteCarloLibrary("test_cctable")
+    #second_try()
+    first_try()
+
+def first_try():
+    library = MonteCarloLibrary("test_cctable")
     #library.reset()
     #library.define_samples(n=50000)
     #library.compute_models(nThreads=6, maxN=100)
     #library.create_table("test_cctable.h5", clobber=True)
-    #ccTable = cctable.CCTable("test_cctable.h5")
-    #ccTable.make("megacam_ui_iK", ("MegaCam_u","MegaCam_i"),
-    #       ("MegaCam_i","TMASS_Ks"), binsize=0.05, clobber=True)
-    #ccTable.open("megacam_gi_iK")
+    ccTable = cctable.CCTable("test_cctable.h5")
+    #ccTable.make("megacam_gi_iK", ("MegaCam_i","TMASS_Ks"),
+    #       ("MegaCam_g","MegaCam_i"), binsize=0.05, clobber=True)
+    ccTable.open("megacam_gi_iK")
     #ccTable.mass_light_table()
-    #print "cols:", ccTable.cells.cols
-    #print "nrows:", ccTable.cells.nrows
+    print "cols:", ccTable.cells.cols
+    print "nrows:", ccTable.cells.nrows
     
-    #plot = cctable.CCPlot(ccTable, "ML_bol")
-    #plot.plot("ml_grid", r"$g^\prime-i^\prime$", r"$i^\prime-K_s$",
-    #       r"$\log_{10} M/L_\mathrm{bol}$")
+    plot = cctable.CCPlot(ccTable, "ML_bol")
+    plot.plot("ml_grid", r"$i^\prime-K_s$", r"$g^\prime-i^\prime$",
+           r"$\log_{10} M/L_\mathrm{bol}$")
 
 def second_try():
     #library = MCLib2("test_cctable_2")
     #library.reset()
-    #library.define_samples(n=1000)
+    #library.define_samples(n=6000)
     #library.compute_models(nThreads=6, maxN=100)
     #library.create_table("test_cctable_2.h5", clobber=True)
 
     ccTable = cctable.CCTable("test_cctable_2.h5")
     #ccTable.make("megacam_gi_iK", ("MegaCam_u","MegaCam_i"),
-    #       ("MegaCam_i","TMASS_Ks"), binsize=0.05, clobber=True)
+    #      ("MegaCam_i","TMASS_Ks"), binsize=0.05, clobber=True)
     ccTable.open("megacam_gi_iK")
     #ccTable.mass_light_table()
     
     plot = cctable.CCPlot(ccTable, "ML_bol")
+    #plot.hist("ml_hist_2")
     plot.plot("ml_grid_2", r"$g^\prime-i^\prime$", r"$i^\prime-K_s$",
            r"$\log_{10} M/L_\mathrm{bol}$")
-
 
 class MonteCarloLibrary(fsps.FSPSLibrary):
     """docstring for MonteCarloLibrary"""
