@@ -40,6 +40,7 @@ class ZibettiLibrary(FSPSLibrary):
     def define_samples(self, n=50000):
         """Define the set of models."""
         for i in xrange(n):
+            tstart = float(self._sample_sf_start())
             pset = ParameterSet(None, # automatically create a name
                 sfh=1, # tau SFH
                 tage=TUNIVERSE, # select only modern-day observations
@@ -48,9 +49,9 @@ class ZibettiLibrary(FSPSLibrary):
                 zmet=int(self._sample_zmet()),
                 tau=float(self._sample_tau()),
                 const=float(0.), # no constant SF component
-                sf_start=float(self._sample_sf_start()),
+                sf_start=tstart,
                 fburst=float(self._sample_fburst()),
-                tburst=float(self._sample_tburst()),
+                tburst=float(self._sample_tburst(tstart)),
                 dust1=float(self._sample_dust1()),
                 dust2=float(self._sample_dust2()),
                 )
