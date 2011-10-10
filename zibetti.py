@@ -73,13 +73,21 @@ class ZibettiLibrary(FSPSLibrary):
 
         Here we generate that pdf using von Neumann's aceptance-rejection
         technique.
+
+        Formally, da Cunha samples for :math:`\gamma=0\ldots1`, but the code
+        checks to ensure that tau is between 0.1 and 100 Gyr.
         """
         u = 3
         x = 0
         while u >= 1. - np.tanh(8.*x - 6):
             x = np.random.uniform(0.,1.)
             u = np.random.uniform(0.,2.)
-        return 1./x
+        tau = 1. / x
+        if tau < 0.1:
+            tau = 0.1
+        elif tau > 100.:
+            tau = 100
+        return tau
 
     def _sample_sf_start(self):
         """Start of star-formation (Gyr. Defined in Kauffmann 2003."""
