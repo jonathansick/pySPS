@@ -79,7 +79,7 @@ class ZibettiLibrary(FSPSLibrary):
         while u >= 1. - np.tanh(8.*x - 6):
             x = np.random.uniform(0.,1.)
             u = np.random.uniform(0.,2.)
-        return x
+        return 1./x
 
     def _sample_sf_start(self):
         """Start of star-formation (Gyr. Defined in Kauffmann 2003."""
