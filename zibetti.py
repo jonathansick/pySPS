@@ -21,13 +21,13 @@ import cctable
 TUNIVERSE = 13.7 # age of universe supposed in Gyr
 
 def main():
-    libname = "zibetti"
+    libname = "zibetti2"
     h5name = libname+".h5"
     define_library = False
     compute_models = False
     make_table = False
-    make_cc = False
-    plot_ml = False
+    make_cc = True
+    plot_ml = True
     plot_scatter = True
 
     library = Zibetti2Library(libname)
@@ -64,47 +64,47 @@ def main():
 
         plot = cctable.CCPlot(ccTable, "ML_bol")
         plot.plot(libname+"_grid_ml", xlabel, ylabel, r"$\log \Upsilon_\mathrm{bol}$",
-                medMult=1, rmsLim=(0.,10), rmsMult=1)
+                medMult=0.2, rmsLim=None, xLim=(-0.5,2.))
 
         plot = cctable.CCPlot(ccTable, "tau")
         plot.plot(libname+"_grid_tau", xlabel, ylabel, r"$\tau$ Gyr",
-                rmsMult=5)
+                rmsMult=5, xLim=(-0.5,2.))
 
         plot = cctable.CCPlot(ccTable, "logTau")
         plot.plot(libname+"_grid_log_tau", xlabel, ylabel, r"$\log \tau$ Gyr",
-                medMult=0.2, rmsMult=0.1)
+                medMult=0.2, rmsMult=0.1, xLim=(-0.5,2.))
 
         plot = cctable.CCPlot(ccTable, "sf_start")
         plot.plot(libname+"_grid_tform", xlabel, ylabel, r"$t_\mathrm{start}$ Gyr",
-                medMult=2)
+                medMult=2, xLim=(-0.5,2.))
 
         plot = cctable.CCPlot(ccTable, "tburst")
         plot.plot(libname+"_grid_tburst", xlabel, ylabel, r"$t_\mathrm{burst}$ Gyr",
-                medMult=2, rmsMult=0.5)
+                medMult=2, rmsMult=0.5, xLim=(-0.5,2.))
 
         plot = cctable.CCPlot(ccTable, "fburst")
         plot.plot(libname+"_grid_fburst", xlabel, ylabel, r"$f_\mathrm{burst}$",
-                medMult=0.1, rmsMult=0.05)
+                medMult=0.1, rmsMult=0.05, xLim=(-0.5,2.))
 
         plot = cctable.CCPlot(ccTable, "logZ")
         plot.plot(libname+"_grid_logZ", xlabel, ylabel, r"$\log Z$",
-                medMult=0.5, rmsMult=0.2)
+                medMult=0.5, rmsMult=0.2, xLim=(-0.5,2.))
 
         plot = cctable.CCPlot(ccTable, "dust2")
         plot.plot(libname+"_grid_dust2", xlabel, ylabel, r"$\mathrm{dust}_2$",
-                medMult=0.1, rmsMult=0.05)
+                medMult=0.1, rmsMult=0.05, xLim=(-0.5,2.))
 
         plot = cctable.CCPlot(ccTable, "gamma")
         plot.plot(libname+"_grid_gamma", xlabel, ylabel, r"$\gamma~\mathrm{Gyr}^{-1}$",
-                medMult=None, rmsMult=None)
+                medMult=None, rmsMult=None, xLim=(-0.5,2.))
 
         plot = cctable.CCPlot(ccTable, "logZsolar")
         plot.plot(libname+"_grid_zsolar", xlabel, ylabel, r"$\log Z/Z_\odot$",
-                medMult=None, rmsMult=None)
+                medMult=None, rmsMult=None, xLim=(-0.5,2.))
 
         plot = cctable.CCPlot(ccTable, "ML_TMASS_Ks")
         plot.plot(libname+"_ml_Ks", xlabel, ylabel, r"$\log \Upsilon_{K_s}$",
-                medMult=None, rmsMult=None)
+                medMult=0.1, xLim=(-0.5,2.))
     if plot_scatter:
         ccTable = cctable.CCTable(h5name)
         ccTable.open("megacam_gi_iK")
@@ -370,7 +370,7 @@ def diagnostic_scatter(plotPath, ccTable):
     ax_z = fig.add_subplot(427)
 
     plot_scatter_gamma(ax_gamma, ccTable, r"$\gamma~\mathrm{Gyr}^{-1}$")
-    plot_scatter(ax_tform, ccTable, 'sf_start', r"$t_\mathrm{form}$ Gyr")
+    plot_scatter(ax_tform, ccTable, 'sf_start', r"$t_\mathrm{start}$ Gyr")
     plot_scatter(ax_tburst, ccTable, 'tburst', r"$t_\mathrm{burst}$ Gyr")
     plot_scatter(ax_fburst, ccTable, 'fburst', r"$f_\mathrm{burst}$")
     plot_scatter(ax_dust1, ccTable, 'dust1', r"$\mathrm{dust}_1$")
@@ -404,7 +404,11 @@ def plot_scatter(ax, ccTable, cname, clabel):
     good = np.where(np.isfinite(modelVals) & np.isfinite(modelLogML))[0]
     modelVals = modelVals[good]
     modelLogML = modelLogML[good]
-    ax.scatter(modelLogML, modelVals, c='k', marker='o', s=0.1)
+
+    grid, extent = grid_hist(modelLogML, modelVals, binsize=0.05)
+    ax.imshow(grid, cmap=mpl.cm.jet, extent=extent, #, interpolation='nearest',
+            origin='lower', aspect='auto')
+    #ax.scatter(modelLogML, modelVals, c='k', marker='o', s=0.1)
     ax.set_ylabel(clabel)
 
 def plot_scatter_gamma(ax, ccTable, clabel):
@@ -422,7 +426,11 @@ def plot_scatter_gamma(ax, ccTable, clabel):
     modelL = -0.4*(modelMag-3.28) # logL
     modelLogML = modelMass - modelL
     good = np.where(np.isfinite(modelTaus) & np.isfinite(modelLogML))[0]
-    ax.scatter(modelLogML[good], modelGamma[good], c='k', marker='o', s=0.1)
+
+    grid, extent = grid_hist(modelLogML, modelGamma, binsize=0.05)
+    ax.imshow(grid, cmap=mpl.cm.jet, extent=extent, #, interpolation='nearest',
+            origin='lower', aspect='auto')
+    #ax.scatter(modelLogML[good], modelGamma[good], c='k', marker='o', s=0.1)
     ax.set_ylabel(clabel)
 
 def plot_scatter_zsolar(ax, ccTable, clabel):
@@ -440,8 +448,31 @@ def plot_scatter_zsolar(ax, ccTable, clabel):
     modelL = -0.4*(modelMag-3.28) # logL
     modelLogML = modelMass - modelL
     good = np.where(np.isfinite(modelZsolar) & np.isfinite(modelLogML))[0]
-    ax.scatter(modelLogML[good], modelZsolar[good], c='k', marker='o', s=0.1)
+
+    grid, extent = grid_hist(modelLogML, modelZsolar, binsize=0.05)
+    ax.imshow(grid, cmap=mpl.cm.jet, extent=extent, #, interpolation='nearest'
+            origin='lower', aspect='auto')
+    #ax.scatter(modelLogML[good], modelZsolar[good], c='k', marker='o', s=0.1)
     ax.set_ylabel(clabel)
+
+def grid_hist(x, y, binsize=0.05):
+    tbl, members, xGrid, yGrid = cctable.griddata(x, y, binsize=binsize)
+    print xGrid, yGrid
+    print tbl['xi']
+    print tbl['yi']
+    ncols = tbl['xi'].max() + 1
+    nrows = tbl['yi'].max() + 1
+    grid = np.zeros([nrows,ncols], dtype=np.float)
+    for i in xrange(len(tbl)):
+        x = tbl['xi'][i]
+        y = tbl['yi'][i]
+        v = tbl['n'][i]
+        if v > 0:
+            grid[y,x] = v
+        else:
+            grid[y,x] = np.nan
+    extent = [xGrid.min(), xGrid.max(), yGrid.min(), yGrid.max()]
+    return grid, extent
 
 if __name__ == '__main__':
     main()

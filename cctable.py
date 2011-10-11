@@ -401,7 +401,7 @@ class CCPlot(object):
         self.kind = kind # name fo column with median quantity
 
     def plot(self, plotPath, xLabel, yLabel, unitLabel,
-            medMult=None, rmsMult=None, medLim=None, rmsLim=None):
+            medMult=None, rmsMult=None, medLim=None, rmsLim=None, xLim=None):
         """General-purpose plot of median value, RMS and bin counts."""
         fig = plt.figure(figsize=(4,8))
         fig.subplots_adjust(left=0.1, bottom=0.07, right=0.85, top=0.95,
@@ -411,10 +411,10 @@ class CCPlot(object):
         axN = fig.add_subplot(313)
         
         self.plot_cc_median(axMed, fig, xLabel, yLabel, unitLabel,
-                zMult=medMult, zLim=medLim)
+                zMult=medMult, zLim=medLim, xLim=xLim)
         self.plot_cc_rms(axRMS, fig, xLabel, yLabel, r"RMS(%s)" % unitLabel,
-                zMult=rmsMult, zLim=rmsLim)
-        self.plot_cc_count(axN, fig, xLabel, yLabel, r"$N$")
+                zMult=rmsMult, zLim=rmsLim, xLim=xLim)
+        self.plot_cc_count(axN, fig, xLabel, yLabel, r"$N$", xLim=xLim)
 
         axMed.set_xlabel("", visible=False)
         axRMS.set_xlabel("")
@@ -422,7 +422,8 @@ class CCPlot(object):
         for tickLabel in axRMS.xaxis.get_majorticklabels(): tickLabel.set_visible(False)
         fig.savefig(plotPath+".pdf", format="pdf")
 
-    def plot_cc_median(self, ax, fig, xLabel, yLabel, zLabel, zMult=None,zLim=None):
+    def plot_cc_median(self, ax, fig, xLabel, yLabel, zLabel,
+            zMult=None,zLim=None,xLim=None):
         """Plots the median value colour-colour grid in the provided axes."""
         x = self.ccTable.xgrid
         y = self.ccTable.ygrid
@@ -442,10 +443,13 @@ class CCPlot(object):
         if zMult is not None:
             cbar.locator = mpl.ticker.MultipleLocator(base=zMult)
             cbar.update_ticks()
+        if xLim is not None:
+            ax.set_xlim(xLim)
         ax.set_xlabel(xLabel)
         ax.set_ylabel(yLabel)
 
-    def plot_cc_rms(self, ax, fig, xLabel, yLabel, zLabel, zMult=None, zLim=None):
+    def plot_cc_rms(self, ax, fig, xLabel, yLabel, zLabel,
+            zMult=None, zLim=None, xLim=None):
         """Plots the median value colour-colour grid in the provided axes."""
         x = self.ccTable.xgrid
         y = self.ccTable.ygrid
@@ -465,10 +469,12 @@ class CCPlot(object):
         if zMult is not None:
             cbar.locator = mpl.ticker.MultipleLocator(base=zMult)
             cbar.update_ticks()
+        if xLim is not None:
+            ax.set_xlim(xLim)
         ax.set_xlabel(xLabel)
         ax.set_ylabel(yLabel)
 
-    def plot_cc_count(self, ax, fig, xLabel, yLabel, zLabel):
+    def plot_cc_count(self, ax, fig, xLabel, yLabel, zLabel, xLim=None):
         """Plots the number of models in the colour-colour grid in the provided axes."""
         x = self.ccTable.xgrid
         y = self.ccTable.ygrid
@@ -488,6 +494,8 @@ class CCPlot(object):
         cbar.set_label(zLabel)
         cbar.locator = mpl.ticker.MultipleLocator(base=100)
         cbar.update_ticks()
+        if xLim is not None:
+            ax.set_xlim(xLim)
         ax.set_xlabel(xLabel)
         ax.set_ylabel(yLabel)
 
