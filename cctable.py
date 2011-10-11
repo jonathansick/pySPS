@@ -99,7 +99,10 @@ class CCTable(object):
         return c
 
     def mass_light_table(self):
-        """Adds a median M/L_bol column to the table."""
+        """Adds a median log M/L_bol column to the table.
+        
+        This is essentially a specialized version of :meth:`median_grid`.
+        """
         massArray = []
         LArray = []
         for x in self.models:
@@ -128,9 +131,6 @@ class CCTable(object):
             else:
                 medianMLs[i] = np.nan
                 sigmaMLs[i] = np.nan
-        print "Median columns:"
-        print medianMLs
-        print sigmaMLs
         self._append_cell_statistics("ML_bol", medianMLs, sigmaMLs)
 
     def median_grid(self, cname, log=False, medName=None):
@@ -171,7 +171,74 @@ class CCTable(object):
             self._append_cell_statistics(medName, medianVals, sigmaVals)
         else:
             self._append_cell_statistics(cname, medianVals, sigmaVals)
+    
+    def zsolar_grid(self, cname="Z", medName="logZsolar"):
+        """Generates a median grid for log(Z/Zsolar). Assumes Zsolar=0.0190
         
+        Essentially this is a specialized version of :meth:`median_grid`.'
+
+        Parameters
+        ----------
+        cname : str, optional
+           Name of the column in the model table with the parameter; typically
+           this is also a name of an FSPS parameter.
+        log : bool, optional
+           If `True`, then the base-10 logarithm of the parameter will
+           be taken before computing the median.
+        medName : str, optional
+           If set, this is the column name for the median values in the
+           colour-colour LUT. Otherwise the parameter's name `cname` is used.
+        """
+        modelVals = np.array([x[cname] for x in self.models], dtype=np.float)
+        modelLogSolarVals = np.log10(modelVals / 0.0190)
+        medianVals = np.zeros(self.cells.nrows, dtype=np.float)
+        sigmaVals = np.zeros(self.cells.nrows, dtype=np.float)
+        for i in xrange(self.cells.nrows):
+            ind = np.where(self.membership[:] == i)[0]
+            if len(ind) > 3:
+                print "Well populated", len(ind), ind
+                sample = modelLogSolarVals[ind]
+                sample = sample[np.isfinite(sample)]
+                medianVals[i] = np.median(sample)
+                sigmaVals[i] = np.std(sample)
+            else:
+                medianVals[i] = np.nan
+                sigmaVals[i] = np.nan
+        self._append_cell_statistics(medName, medianVals, sigmaVals)
+
+    def gamma_grid(self, cname="tau", medName="gamma"):
+        """Generates a median grid for gamma.
+
+        gamma is used by the Bruzual and Charlot models to parameterize SFH.
+        It is inversely related to the tau parameter of FSPS.
+
+        Essentially this is a specialized version of :meth:`median_grid`.'
+
+        Parameters
+        ----------
+        cname : str, optional
+           Name of the column in the model table with the parameter; typically
+           this is also a name of an FSPS parameter.
+        medName : str, optional
+           If set, this is the column name for the median values in the
+           colour-colour LUT. Otherwise the parameter's name `cname` is used.
+        """
+        modelVals = np.array([x[cname] for x in self.models], dtype=np.float)
+        gammaVals = 1/modelVals
+        medianVals = np.zeros(self.cells.nrows, dtype=np.float)
+        sigmaVals = np.zeros(self.cells.nrows, dtype=np.float)
+        for i in xrange(self.cells.nrows):
+            ind = np.where(self.membership[:] == i)[0]
+            if len(ind) > 3:
+                print "Well populated", len(ind), ind
+                sample = gammaVals[ind]
+                sample = sample[np.isfinite(sample)]
+                medianVals[i] = np.median(sample)
+                sigmaVals[i] = np.std(sample)
+            else:
+                medianVals[i] = np.nan
+                sigmaVals[i] = np.nan
+        self._append_cell_statistics(medName, medianVals, sigmaVals)
 
     def _append_cell_statistics(self, name, medianArray, sigmaArray):
         """Appends colums to the cell table for the median value and its

@@ -19,11 +19,11 @@ import cctable
 TUNIVERSE = 13.7 # age of universe supposed in Gyr
 
 def main():
-    libname = "zibetti"
+    libname = "zibetti2"
     h5name = libname+".h5"
-    define_library = False
-    compute_models = False
-    make_table = False
+    define_library = True
+    compute_models = True
+    make_table = True
     make_cc = True
     plot_ml = True
 
@@ -49,6 +49,8 @@ def main():
         ccTable.median_grid("sf_start")
         ccTable.median_grid("tburst")
         ccTable.median_grid("fburst")
+        ccTable.zsolar_grid()
+        ccTable.gamma_grid()
     if plot_ml:
         xlabel = r"$i^\prime-K_s$"
         ylabel = r"$g^\prime-i^\prime$"
@@ -87,6 +89,14 @@ def main():
         plot = cctable.CCPlot(ccTable, "dust2")
         plot.plot(libname+"_grid_dust2", xlabel, ylabel, r"$\mathrm{dust}_2$",
                 medMult=0.1, rmsMult=0.05)
+
+        plot = cctable.CCPlot(ccTable, "gamma")
+        plot.plot(libname+"_grid_gamma", xlabel, ylabel, r"$\gamma~\mathrm{Gyr}^{-1}$",
+                medMult=None, rmsMult=None)
+
+        plot = cctable.CCPlot(ccTable, "logZsolar")
+        plot.plot(libname+"_grid_zsolar", xlabel, ylabel, r"$\log Z/Z_\odot$",
+                medMult=None, rmsMult=None)
 
 
 class ZibettiLibrary(FSPSLibrary):
@@ -207,7 +217,489 @@ class ZibettiLibrary(FSPSLibrary):
             x = np.random.uniform(0.,6.)
             u = np.random.uniform(0.,2.)
         return x
+
+class ZibettiLibrary(FSPSLibrary):
+    """A Monte Carlo stellar population library designed around the Zibetti
+    (2009) priors for SFH and dust. The exact forms of the probability
+    distribution functions are best specified in da Cunha, Charlot and Elbaz
+    (2008).
+    """
+    def define_samples(self, n=50000):
+        """Define the set of models."""
+        for i in xrange(n):
+            tstart = float(self._sample_sf_start())
+            pset = ParameterSet(None, # automatically create a name
+                sfh=1, # tau SFH
+                tage=TUNIVERSE, # select only modern-day observations
+                imf_type=1, # Chabrier 2003
+                dust_type=2, # Calzetti 2000 attenuation curve
+                zmet=int(self._sample_zmet()),
+                tau=float(self._sample_tau()),
+                const=float(0.), # no constant SF component
+                sf_start=tstart,
+                fburst=float(self._sample_fburst()),
+                tburst=float(self._sample_tburst(tstart)),
+                dust1=float(self._sample_dust1()),
+                dust2=float(self._sample_dust2()),
+                )
+            self.register_pset(pset)
     
+    def _sample_zmet(self):
+        """Returns a random metallicity from the Padova catalog."""
+        return np.random.randint(1,23)
+    
+    def _sample_tau(self):
+        """Power law timescale of SFH, :math:`SFR(t) \propto exp(-t/\tau)`.
+
+        Note that users of the Charlot and Bruzual use a :math:`\gamma`
+        parameter, where :math:`\gamma \equiv 1/\tau`.
+        
+        da Cunha (2008) uses a p.d.f. of
+
+        .. math:: p(\gamma) = 1-\tanh (8\gamma - 6)
+
+        Here we generate that pdf using von Neumann's aceptance-rejection
+        technique.
+
+        Formally, da Cunha samples for :math:`\gamma=0\ldots1`, but the code
+        checks to ensure that tau is between 0.1 and 100 Gyr.
+        """
+        u = 3
+        x = 0
+        while u >= 1. - np.tanh(8.*x - 6):
+            x = np.random.uniform(0.,1.)
+            u = np.random.uniform(0.,2.)
+        tau = 1. / x
+        if tau < 0.1:
+            tau = 0.1
+        elif tau > 100.:
+            tau = 100
+        return tau
+
+    def _sample_sf_start(self):
+        """Start of star-formation (Gyr. Defined in Kauffmann 2003."""
+        return np.random.uniform(0.1, TUNIVERSE-1.5)
+
+    def _sample_tburst(self, tform):
+        """Time when the star-burst happens. We take the start of
+        star-formation as an input so that there *can* always be a burst.
+
+        This mathematical form of this prior used by Kauffmann et al is
+        poorly specified. I quote:
+
+        .. Bursts occur with equal probability at all times after tform and
+           we have set the probability so that 50 per cent of the galaxies in
+           the library have experienced a burst over the past 2 Gyr.
+
+        The first part of that sentence does not necessarily imply the other.
+        Regardless, I simply use a prior that bursts can happend uniformly
+        between the start of star foramtion and the modern day.
+        """
+        return np.random.uniform(tform, TUNIVERSE)
+
+    def _sample_fburst(self):
+        """The fraction of stellar mass formed in a burst mode. Kauffmann
+        logarithmically sample between 0 and 0.75.
+        """
+        return np.random.uniform(0., 0.75) # we're cheap and use uniform
+
+    def _sample_dust1(self):
+        """Sample the attenuation of young stellar light.
+        
+        da Cunha (2008) uses a p.d.f. of
+
+        .. math:: p(\tau_V) = 1-\tanh (1.5\tau_V - 6.7)
+
+        Here we generate that pdf using von Neumann's aceptance-rejection
+        technique.
+        """
+        u = 3
+        x = 0
+        while u >= 1. - np.tanh(1.5*x - 6.7):
+            x = np.random.uniform(0.,6.)
+            u = np.random.uniform(0.,2.)
+        return x
+
+    def _sample_dust2(self):
+        """Sample the attenuation due to the ambient ISM.
+        
+        da Cunha (2008) uses a p.d.f. of
+
+        .. math:: p(\mu) = 1-\tanh (8 \mu - 6)
+
+        Here we generate that pdf using von Neumann's aceptance-rejection
+        technique.
+        """
+        u = 3
+        x = 0
+        while u >= 1. - np.tanh(8.*x - 6.):
+            x = np.random.uniform(0.,6.)
+            u = np.random.uniform(0.,2.)
+        return x
+
+class ZibettiLibrary(FSPSLibrary):
+    """A Monte Carlo stellar population library designed around the Zibetti
+    (2009) priors for SFH and dust. The exact forms of the probability
+    distribution functions are best specified in da Cunha, Charlot and Elbaz
+    (2008).
+    """
+    def define_samples(self, n=50000):
+        """Define the set of models."""
+        for i in xrange(n):
+            tstart = float(self._sample_sf_start())
+            pset = ParameterSet(None, # automatically create a name
+                sfh=1, # tau SFH
+                tage=TUNIVERSE, # select only modern-day observations
+                imf_type=1, # Chabrier 2003
+                dust_type=2, # Calzetti 2000 attenuation curve
+                zmet=int(self._sample_zmet()),
+                tau=float(self._sample_tau()),
+                const=float(0.), # no constant SF component
+                sf_start=tstart,
+                fburst=float(self._sample_fburst()),
+                tburst=float(self._sample_tburst(tstart)),
+                dust1=float(self._sample_dust1()),
+                dust2=float(self._sample_dust2()),
+                )
+            self.register_pset(pset)
+    
+    def _sample_zmet(self):
+        """Returns a random metallicity from the Padova catalog."""
+        return np.random.randint(1,23)
+    
+    def _sample_tau(self):
+        """Power law timescale of SFH, :math:`SFR(t) \propto exp(-t/\tau)`.
+
+        Note that users of the Charlot and Bruzual use a :math:`\gamma`
+        parameter, where :math:`\gamma \equiv 1/\tau`.
+        
+        da Cunha (2008) uses a p.d.f. of
+
+        .. math:: p(\gamma) = 1-\tanh (8\gamma - 6)
+
+        Here we generate that pdf using von Neumann's aceptance-rejection
+        technique.
+
+        Formally, da Cunha samples for :math:`\gamma=0\ldots1`, but the code
+        checks to ensure that tau is between 0.1 and 100 Gyr.
+        """
+        u = 3
+        x = 0
+        while u >= 1. - np.tanh(8.*x - 6):
+            x = np.random.uniform(0.,1.)
+            u = np.random.uniform(0.,2.)
+        tau = 1. / x
+        if tau < 0.1:
+            tau = 0.1
+        elif tau > 100.:
+            tau = 100
+        return tau
+
+    def _sample_sf_start(self):
+        """Start of star-formation (Gyr. Defined in Kauffmann 2003."""
+        return np.random.uniform(0.1, TUNIVERSE-1.5)
+
+    def _sample_tburst(self, tform):
+        """Time when the star-burst happens. We take the start of
+        star-formation as an input so that there *can* always be a burst.
+
+        This mathematical form of this prior used by Kauffmann et al is
+        poorly specified. I quote:
+
+        .. Bursts occur with equal probability at all times after tform and
+           we have set the probability so that 50 per cent of the galaxies in
+           the library have experienced a burst over the past 2 Gyr.
+
+        The first part of that sentence does not necessarily imply the other.
+        Regardless, I simply use a prior that bursts can happend uniformly
+        between the start of star foramtion and the modern day.
+        """
+        return np.random.uniform(tform, TUNIVERSE)
+
+    def _sample_fburst(self):
+        """The fraction of stellar mass formed in a burst mode. Kauffmann
+        logarithmically sample between 0 and 0.75.
+        """
+        return np.random.uniform(0., 0.75) # we're cheap and use uniform
+
+    def _sample_dust1(self):
+        """Sample the attenuation of young stellar light.
+        
+        da Cunha (2008) uses a p.d.f. of
+
+        .. math:: p(\tau_V) = 1-\tanh (1.5\tau_V - 6.7)
+
+        Here we generate that pdf using von Neumann's aceptance-rejection
+        technique.
+        """
+        u = 3
+        x = 0
+        while u >= 1. - np.tanh(1.5*x - 6.7):
+            x = np.random.uniform(0.,6.)
+            u = np.random.uniform(0.,2.)
+        return x
+
+    def _sample_dust2(self):
+        """Sample the attenuation due to the ambient ISM.
+        
+        da Cunha (2008) uses a p.d.f. of
+
+        .. math:: p(\mu) = 1-\tanh (8 \mu - 6)
+
+        Here we generate that pdf using von Neumann's aceptance-rejection
+        technique.
+        """
+        u = 3
+        x = 0
+        while u >= 1. - np.tanh(8.*x - 6.):
+            x = np.random.uniform(0.,6.)
+            u = np.random.uniform(0.,2.)
+        return x
+
+
+class ZibettiLibrary(FSPSLibrary):
+    """A Monte Carlo stellar population library designed around the Zibetti
+    (2009) priors for SFH and dust. The exact forms of the probability
+    distribution functions are best specified in da Cunha, Charlot and Elbaz
+    (2008).
+    """
+    def define_samples(self, n=50000):
+        """Define the set of models."""
+        for i in xrange(n):
+            tstart = float(self._sample_sf_start())
+            pset = ParameterSet(None, # automatically create a name
+                sfh=1, # tau SFH
+                tage=TUNIVERSE, # select only modern-day observations
+                imf_type=1, # Chabrier 2003
+                dust_type=2, # Calzetti 2000 attenuation curve
+                zmet=int(self._sample_zmet()),
+                tau=float(self._sample_tau()),
+                const=float(0.), # no constant SF component
+                sf_start=tstart,
+                fburst=float(self._sample_fburst()),
+                tburst=float(self._sample_tburst(tstart)),
+                dust1=float(self._sample_dust1()),
+                dust2=float(self._sample_dust2()),
+                )
+            self.register_pset(pset)
+    
+    def _sample_zmet(self):
+        """Returns a random metallicity from the Padova catalog."""
+        return np.random.randint(1,23)
+    
+    def _sample_tau(self):
+        """Power law timescale of SFH, :math:`SFR(t) \propto exp(-t/\tau)`.
+
+        Note that users of the Charlot and Bruzual use a :math:`\gamma`
+        parameter, where :math:`\gamma \equiv 1/\tau`.
+        
+        da Cunha (2008) uses a p.d.f. of
+
+        .. math:: p(\gamma) = 1-\tanh (8\gamma - 6)
+
+        Here we generate that pdf using von Neumann's aceptance-rejection
+        technique.
+
+        Formally, da Cunha samples for :math:`\gamma=0\ldots1`, but the code
+        checks to ensure that tau is between 0.1 and 100 Gyr.
+        """
+        u = 3
+        x = 0
+        while u >= 1. - np.tanh(8.*x - 6):
+            x = np.random.uniform(0.,1.)
+            u = np.random.uniform(0.,2.)
+        tau = 1. / x
+        if tau < 0.1:
+            tau = 0.1
+        elif tau > 100.:
+            tau = 100
+        return tau
+
+    def _sample_sf_start(self):
+        """Start of star-formation (Gyr. Defined in Kauffmann 2003."""
+        return np.random.uniform(0.1, TUNIVERSE-1.5)
+
+    def _sample_tburst(self, tform):
+        """Time when the star-burst happens. We take the start of
+        star-formation as an input so that there *can* always be a burst.
+
+        This mathematical form of this prior used by Kauffmann et al is
+        poorly specified. I quote:
+
+        .. Bursts occur with equal probability at all times after tform and
+           we have set the probability so that 50 per cent of the galaxies in
+           the library have experienced a burst over the past 2 Gyr.
+
+        The first part of that sentence does not necessarily imply the other.
+        Regardless, I simply use a prior that bursts can happend uniformly
+        between the start of star foramtion and the modern day.
+        """
+        return np.random.uniform(tform, TUNIVERSE)
+
+    def _sample_fburst(self):
+        """The fraction of stellar mass formed in a burst mode. Kauffmann
+        logarithmically sample between 0 and 0.75.
+        """
+        return np.random.uniform(0., 0.75) # we're cheap and use uniform
+
+    def _sample_dust1(self):
+        """Sample the attenuation of young stellar light.
+        
+        da Cunha (2008) uses a p.d.f. of
+
+        .. math:: p(\tau_V) = 1-\tanh (1.5\tau_V - 6.7)
+
+        Here we generate that pdf using von Neumann's aceptance-rejection
+        technique.
+        """
+        u = 3
+        x = 0
+        while u >= 1. - np.tanh(1.5*x - 6.7):
+            x = np.random.uniform(0.,6.)
+            u = np.random.uniform(0.,2.)
+        return x
+
+    def _sample_dust2(self):
+        """Sample the attenuation due to the ambient ISM.
+        
+        da Cunha (2008) uses a p.d.f. of
+
+        .. math:: p(\mu) = 1-\tanh (8 \mu - 6)
+
+        Here we generate that pdf using von Neumann's aceptance-rejection
+        technique.
+        """
+        u = 3
+        x = 0
+        while u >= 1. - np.tanh(8.*x - 6.):
+            x = np.random.uniform(0.,6.)
+            u = np.random.uniform(0.,2.)
+        return x
+
+class Zibetti2Library(FSPSLibrary):
+    """A Monte Carlo stellar population library designed around the Zibetti
+    (2009) priors for SFH and dust. The exact forms of the probability
+    distribution functions are best specified in da Cunha, Charlot and Elbaz
+    (2008).
+
+    This is the same as the ZibettiLibrary, except that we use a Milky Way dust
+    model, with a power law (-0.7) dust model, rather than a Calzetti model.
+    """
+    def define_samples(self, n=50000):
+        """Define the set of models."""
+        for i in xrange(n):
+            tstart = float(self._sample_sf_start())
+            pset = ParameterSet(None, # automatically create a name
+                sfh=1, # tau SFH
+                tage=TUNIVERSE, # select only modern-day observations
+                imf_type=1, # Chabrier 2003
+                dust_type=0, # power-law dust model
+                zmet=int(self._sample_zmet()),
+                tau=float(self._sample_tau()),
+                const=float(0.), # no constant SF component
+                sf_start=tstart,
+                fburst=float(self._sample_fburst()),
+                tburst=float(self._sample_tburst(tstart)),
+                dust1=float(self._sample_dust1()),
+                dust2=float(self._sample_dust2()),
+                dust_index=-0.7
+                )
+            self.register_pset(pset)
+    
+    def _sample_zmet(self):
+        """Returns a random metallicity from the Padova catalog."""
+        return np.random.randint(1,23)
+    
+    def _sample_tau(self):
+        """Power law timescale of SFH, :math:`SFR(t) \propto exp(-t/\tau)`.
+
+        Note that users of the Charlot and Bruzual use a :math:`\gamma`
+        parameter, where :math:`\gamma \equiv 1/\tau`.
+        
+        da Cunha (2008) uses a p.d.f. of
+
+        .. math:: p(\gamma) = 1-\tanh (8\gamma - 6)
+
+        Here we generate that pdf using von Neumann's aceptance-rejection
+        technique.
+
+        Formally, da Cunha samples for :math:`\gamma=0\ldots1`, but the code
+        checks to ensure that tau is between 0.1 and 100 Gyr.
+        """
+        u = 3
+        x = 0
+        while u >= 1. - np.tanh(8.*x - 6):
+            x = np.random.uniform(0.,1.)
+            u = np.random.uniform(0.,2.)
+        tau = 1. / x
+        if tau < 0.1:
+            tau = 0.1
+        elif tau > 100.:
+            tau = 100
+        return tau
+
+    def _sample_sf_start(self):
+        """Start of star-formation (Gyr. Defined in Kauffmann 2003."""
+        return np.random.uniform(0.1, TUNIVERSE-1.5)
+
+    def _sample_tburst(self, tform):
+        """Time when the star-burst happens. We take the start of
+        star-formation as an input so that there *can* always be a burst.
+
+        This mathematical form of this prior used by Kauffmann et al is
+        poorly specified. I quote:
+
+        .. Bursts occur with equal probability at all times after tform and
+           we have set the probability so that 50 per cent of the galaxies in
+           the library have experienced a burst over the past 2 Gyr.
+
+        The first part of that sentence does not necessarily imply the other.
+        Regardless, I simply use a prior that bursts can happend uniformly
+        between the start of star foramtion and the modern day.
+        """
+        return np.random.uniform(tform, TUNIVERSE)
+
+    def _sample_fburst(self):
+        """The fraction of stellar mass formed in a burst mode. Kauffmann
+        logarithmically sample between 0 and 0.75.
+        """
+        return np.random.uniform(0., 0.75) # we're cheap and use uniform
+
+    def _sample_dust1(self):
+        """Sample the attenuation of young stellar light.
+        
+        da Cunha (2008) uses a p.d.f. of
+
+        .. math:: p(\tau_V) = 1-\tanh (1.5\tau_V - 6.7)
+
+        Here we generate that pdf using von Neumann's aceptance-rejection
+        technique.
+        """
+        u = 3
+        x = 0
+        while u >= 1. - np.tanh(1.5*x - 6.7):
+            x = np.random.uniform(0.,6.)
+            u = np.random.uniform(0.,2.)
+        return x
+
+    def _sample_dust2(self):
+        """Sample the attenuation due to the ambient ISM.
+        
+        da Cunha (2008) uses a p.d.f. of
+
+        .. math:: p(\mu) = 1-\tanh (8 \mu - 6)
+
+        Here we generate that pdf using von Neumann's aceptance-rejection
+        technique.
+        """
+        u = 3
+        x = 0
+        while u >= 1. - np.tanh(8.*x - 6.):
+            x = np.random.uniform(0.,6.)
+            u = np.random.uniform(0.,2.)
+        return x
+
+
 if __name__ == '__main__':
     main()
 
