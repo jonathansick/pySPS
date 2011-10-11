@@ -240,6 +240,45 @@ class CCTable(object):
                 sigmaVals[i] = np.nan
         self._append_cell_statistics(medName, medianVals, sigmaVals)
 
+    def ml_x_grid(self, bandname, solarMag):
+        """Generates a median grid for Mass/Light in a specific band. The
+        M/L is stored in the table as ML_bandname
+
+        Essentially this is a specialized version of :meth:`median_grid`.'
+
+        Parameters
+        ----------
+        bandname : str
+           Name of the band, this should be a column in the Models Table. For
+           band names, see `fsps.FILTER_LIST`.
+        solarMag : float
+           The absolute solar magnitude in this band
+        """
+        massArray = []
+        magsArray = []
+        for x in self.models:
+            massArray.append(x['mass'])
+            magsArray.append(x[bandname])
+        modelMass = np.array(massArray)
+        modelMags = np.array(magsArray)
+        modelLLsolar = 10.**(-0.4*(modelMags - solarMag))
+        modelML = modelMass / modelLLsolar
+        medianVals = np.zeros(self.cells.nrows, dtype=np.float)
+        sigmaVals = np.zeros(self.cells.nrows, dtype=np.float)
+        for i in xrange(self.cells.nrows):
+            ind = np.where(self.membership[:] == i)[0]
+            if len(ind) > 3:
+                print "Well populated", len(ind), ind
+                sample = modelML[ind]
+                sample = sample[np.isfinite(sample)]
+                medianVals[i] = np.median(sample)
+                sigmaVals[i] = np.std(sample)
+            else:
+                medianVals[i] = np.nan
+                sigmaVals[i] = np.nan
+        medName = "ML_"+bandname
+        self._append_cell_statistics(medName, medianVals, sigmaVals)
+
     def _append_cell_statistics(self, name, medianArray, sigmaArray):
         """Appends colums to the cell table for the median value and its
         standard deviation"""

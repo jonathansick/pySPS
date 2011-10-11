@@ -19,11 +19,11 @@ import cctable
 TUNIVERSE = 13.7 # age of universe supposed in Gyr
 
 def main():
-    libname = "zibetti2"
+    libname = "zibetti"
     h5name = libname+".h5"
-    define_library = True
-    compute_models = True
-    make_table = True
+    define_library = False
+    compute_models = False
+    make_table = False
     make_cc = True
     plot_ml = True
 
@@ -51,6 +51,7 @@ def main():
         ccTable.median_grid("fburst")
         ccTable.zsolar_grid()
         ccTable.gamma_grid()
+        ccTable.ml_x_grid("TMASS_Ks", 3.28)
     if plot_ml:
         xlabel = r"$i^\prime-K_s$"
         ylabel = r"$g^\prime-i^\prime$"
@@ -59,7 +60,7 @@ def main():
         ccTable.open("megacam_gi_iK")
 
         plot = cctable.CCPlot(ccTable, "ML_bol")
-        plot.plot(libname+"_grid_ml", xlabel, ylabel, r"$\log M/L_\mathrm{bol}$",
+        plot.plot(libname+"_grid_ml", xlabel, ylabel, r"$\log \Upsilon_\mathrm{bol}$",
                 medMult=1, rmsLim=(0.,10), rmsMult=1)
 
         plot = cctable.CCPlot(ccTable, "tau")
@@ -96,6 +97,10 @@ def main():
 
         plot = cctable.CCPlot(ccTable, "logZsolar")
         plot.plot(libname+"_grid_zsolar", xlabel, ylabel, r"$\log Z/Z_\odot$",
+                medMult=None, rmsMult=None)
+
+        plot = cctable.CCPlot(ccTable, "ML_TMASS_Ks")
+        plot.plot(libname+"_ml_Ks", xlabel, ylabel, r"$\log \Upsilon_{K_s}$",
                 medMult=None, rmsMult=None)
 
 
