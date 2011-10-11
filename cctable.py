@@ -133,6 +133,46 @@ class CCTable(object):
         print sigmaMLs
         self._append_cell_statistics("ML_bol", medianMLs, sigmaMLs)
 
+    def median_grid(self, cname, log=False, medName=None):
+        """Generates a median grid for a column-name `cname`.
+        
+        The median data for each cell in the colour-colour table is appended
+        as a column in the `cells` table.
+        
+        Parameters
+        ----------
+        cname : str
+           Name of the column in the model table with the parameter; typically
+           this is also a name of an FSPS parameter.
+        log : bool, optional
+           If `True`, then the base-10 logarithm of the parameter will
+           be taken before computing the median.
+        medName : str, optional
+           If set, this is the column name for the median values in the
+           colour-colour LUT. Otherwise the parameter's name `cname` is used.
+        """
+        modelVals = np.array([x[cname] for x in self.models], dtype=np.float)
+        medianVals = np.zeros(self.cells.nrows, dtype=np.float)
+        sigmaVals = np.zeros(self.cells.nrows, dtype=np.float)
+        for i in xrange(self.cells.nrows):
+            ind = np.where(self.membership[:] == i)[0]
+            if len(ind) > 3:
+                print "Well populated", len(ind), ind
+                sample = modelVals[ind]
+                sample = sample[np.isfinite(sample)]
+                if log:
+                    sample = np.log10(sample)
+                medianVals[i] = np.median(sample)
+                sigmaVals[i] = np.std(sample)
+            else:
+                medianVals[i] = np.nan
+                sigmaVals[i] = np.nan
+        if medName is not None:
+            self._append_cell_statistics(medName, medianVals, sigmaVals)
+        else:
+            self._append_cell_statistics(cname, medianVals, sigmaVals)
+        
+
     def _append_cell_statistics(self, name, medianArray, sigmaArray):
         """Appends colums to the cell table for the median value and its
         standard deviation"""
@@ -257,19 +297,29 @@ class CCPlot(object):
         self.ccTable = ccTable
         self.kind = kind # name fo column with median quantity
 
-    def plot(self, plotPath, xLabel, yLabel, unitLabel):
+    def plot(self, plotPath, xLabel, yLabel, unitLabel,
+            medMult=None, rmsMult=None, medLim=None, rmsLim=None):
         """General-purpose plot of median value, RMS and bin counts."""
         fig = plt.figure(figsize=(4,8))
+        fig.subplots_adjust(left=0.1, bottom=0.07, right=0.85, top=0.95,
+                wspace=None, hspace=None)
         axMed = fig.add_subplot(311)
         axRMS = fig.add_subplot(312)
         axN = fig.add_subplot(313)
         
-        self.plot_cc_median(axMed, fig, xLabel, yLabel, unitLabel)
-        self.plot_cc_rms(axRMS, fig, xLabel, yLabel, unitLabel)
+        self.plot_cc_median(axMed, fig, xLabel, yLabel, unitLabel,
+                zMult=medMult, zLim=medLim)
+        self.plot_cc_rms(axRMS, fig, xLabel, yLabel, r"RMS(%s)" % unitLabel,
+                zMult=rmsMult, zLim=rmsLim)
         self.plot_cc_count(axN, fig, xLabel, yLabel, r"$N$")
+
+        axMed.set_xlabel("", visible=False)
+        axRMS.set_xlabel("")
+        for tickLabel in axMed.xaxis.get_majorticklabels(): tickLabel.set_visible(False)
+        for tickLabel in axRMS.xaxis.get_majorticklabels(): tickLabel.set_visible(False)
         fig.savefig(plotPath+".pdf", format="pdf")
 
-    def plot_cc_median(self, ax, fig, xLabel, yLabel, zLabel):
+    def plot_cc_median(self, ax, fig, xLabel, yLabel, zLabel, zMult=None,zLim=None):
         """Plots the median value colour-colour grid in the provided axes."""
         x = self.ccTable.xgrid
         y = self.ccTable.ygrid
@@ -277,15 +327,22 @@ class CCPlot(object):
         extent = [min(x),max(x),min(y),max(y)]
         print "extent:", extent
         grid = self._make_image(self.kind)
-        im = ax.imshow(grid, cmap=mpl.cm.jet, extent=extent, vmin=-3., vmax=0.,
+        if zLim is not None:
+            vmin, vmax = zLim
+        else:
+            vmin, vmax = None, None
+        im = ax.imshow(grid, cmap=mpl.cm.jet, extent=extent, vmin=vmin, vmax=vmax,
             interpolation='nearest', origin='lower', aspect='equal') # , aspect='equal'
         cbar = fig.colorbar(mappable=im, cax=None, ax=ax, orientation='vertical',
             fraction=0.1, pad=0.02, shrink=0.75,)
         cbar.set_label(zLabel)
+        if zMult is not None:
+            cbar.locator = mpl.ticker.MultipleLocator(base=zMult)
+            cbar.update_ticks()
         ax.set_xlabel(xLabel)
         ax.set_ylabel(yLabel)
 
-    def plot_cc_rms(self, ax, fig, xLabel, yLabel, zLabel):
+    def plot_cc_rms(self, ax, fig, xLabel, yLabel, zLabel, zMult=None, zLim=None):
         """Plots the median value colour-colour grid in the provided axes."""
         x = self.ccTable.xgrid
         y = self.ccTable.ygrid
@@ -293,11 +350,18 @@ class CCPlot(object):
         extent = [min(x),max(x),min(y),max(y)]
         print "extent:", extent
         grid = self._make_image(self.kind+"_std")
-        im = ax.imshow(grid, cmap=mpl.cm.jet, extent=extent,
+        if zLim is not None:
+            vmin, vmax = zLim
+        else:
+            vmin, vmax = None, None
+        im = ax.imshow(grid, cmap=mpl.cm.jet, extent=extent, vmin=vmin, vmax=vmax,
             interpolation='nearest', origin='lower',aspect='equal') # , aspect='equal'
         cbar = fig.colorbar(mappable=im, cax=None, ax=ax, orientation='vertical',
             fraction=0.1, pad=0.02, shrink=0.75,)
         cbar.set_label(zLabel)
+        if zMult is not None:
+            cbar.locator = mpl.ticker.MultipleLocator(base=zMult)
+            cbar.update_ticks()
         ax.set_xlabel(xLabel)
         ax.set_ylabel(yLabel)
 
@@ -312,16 +376,17 @@ class CCPlot(object):
         print "count shape", grid.shape
         print grid.min(), grid.max()
         grid = grid.astype(int)
+        #grid[np.where(grid < 4)] = np.nan
         print grid.dtype
         im = ax.imshow(grid, cmap=mpl.cm.jet, extent=extent, vmin=0, vmax=grid.max(),
             interpolation='nearest', origin='lower',aspect='equal') # , aspect='equal'
         cbar = fig.colorbar(mappable=im, cax=None, ax=ax, orientation='vertical',
             fraction=0.1, pad=0.02, shrink=0.75,)
         cbar.set_label(zLabel)
+        cbar.locator = mpl.ticker.MultipleLocator(base=100)
+        cbar.update_ticks()
         ax.set_xlabel(xLabel)
         ax.set_ylabel(yLabel)
-
-        pyfits.writeto("test.fits", grid, clobber=True)
 
     def _make_image(self, colName):
         """`colName` is the name of the column in the colour-colour table."""
