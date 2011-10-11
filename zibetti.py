@@ -11,6 +11,8 @@ History
 
 """
 import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 
 from fsps import FSPSLibrary
 from fsps import ParameterSet
@@ -24,8 +26,9 @@ def main():
     define_library = False
     compute_models = False
     make_table = False
-    make_cc = True
-    plot_ml = True
+    make_cc = False
+    plot_ml = False
+    plot_scatter = True
 
     library = Zibetti2Library(libname)
     if define_library:
@@ -102,6 +105,10 @@ def main():
         plot = cctable.CCPlot(ccTable, "ML_TMASS_Ks")
         plot.plot(libname+"_ml_Ks", xlabel, ylabel, r"$\log \Upsilon_{K_s}$",
                 medMult=None, rmsMult=None)
+    if plot_scatter:
+        ccTable = cctable.CCTable(h5name)
+        ccTable.open("megacam_gi_iK")
+        diagnostic_scatter(libname+"_diagnostics", ccTable)
 
 
 class ZibettiLibrary(FSPSLibrary):
@@ -346,6 +353,95 @@ class Zibetti2Library(FSPSLibrary):
             u = np.random.uniform(0.,2.)
         return x
 
+def diagnostic_scatter(plotPath, ccTable):
+    """Looks at the covariences of various parameters with M/L using
+    scatterplots.
+    """
+    fig = plt.figure(figsize=(6,8))
+    fig.subplots_adjust(left=0.15, bottom=0.1, right=0.95, top=0.95,
+                wspace=0.35, hspace=0.1)
+
+    ax_gamma = fig.add_subplot(421)
+    ax_tform = fig.add_subplot(422)
+    ax_tburst = fig.add_subplot(423)
+    ax_fburst = fig.add_subplot(424)
+    ax_dust1 = fig.add_subplot(425)
+    ax_dust2 = fig.add_subplot(426)
+    ax_z = fig.add_subplot(427)
+
+    plot_scatter_gamma(ax_gamma, ccTable, r"$\gamma~\mathrm{Gyr}^{-1}$")
+    plot_scatter(ax_tform, ccTable, 'sf_start', r"$t_\mathrm{form}$ Gyr")
+    plot_scatter(ax_tburst, ccTable, 'tburst', r"$t_\mathrm{burst}$ Gyr")
+    plot_scatter(ax_fburst, ccTable, 'fburst', r"$f_\mathrm{burst}$")
+    plot_scatter(ax_dust1, ccTable, 'dust1', r"$\mathrm{dust}_1$")
+    plot_scatter(ax_dust2, ccTable, 'dust2', r"$\mathrm{dust}_2$")
+    plot_scatter_zsolar(ax_z, ccTable, r"$\log Z/Z_\odot$")
+    ax_z.set_xlabel(r"$\log \Upsilon_{K_s}$")
+    ax_dust2.set_xlabel(r"$\log \Upsilon_{K_s}$")
+
+    for l in ax_gamma.xaxis.get_majorticklabels(): l.set_visible(False)
+    for l in ax_tform.xaxis.get_majorticklabels(): l.set_visible(False)
+    for l in ax_fburst.xaxis.get_majorticklabels(): l.set_visible(False)
+    for l in ax_tburst.xaxis.get_majorticklabels(): l.set_visible(False)
+    for l in ax_dust1.xaxis.get_majorticklabels(): l.set_visible(False)
+
+    fig.savefig(plotPath+".png", format="png")
+    #fig.savefig(plotPath+".pdf", format="pdf")
+
+def plot_scatter(ax, ccTable, cname, clabel):
+    modelVals = []
+    modelMass = []
+    modelMag = []
+    for x in ccTable.models:
+        modelVals.append(x[cname])
+        modelMass.append(x['mass'])
+        modelMag.append(x['TMASS_Ks'])
+    modelVals = np.array(modelVals)
+    modelMass = np.array(modelMass) # logMass
+    modelMag = np.array(modelMag)
+    modelL = -0.4*(modelMag-3.28) # logL
+    modelLogML = modelMass - modelL
+    good = np.where(np.isfinite(modelVals) & np.isfinite(modelLogML))[0]
+    modelVals = modelVals[good]
+    modelLogML = modelLogML[good]
+    ax.scatter(modelLogML, modelVals, c='k', marker='o', s=0.1)
+    ax.set_ylabel(clabel)
+
+def plot_scatter_gamma(ax, ccTable, clabel):
+    modelTaus = []
+    modelMass = []
+    modelMag = []
+    for x in ccTable.models:
+        modelTaus.append(x['tau'])
+        modelMass.append(x['mass'])
+        modelMag.append(x['TMASS_Ks'])
+    modelTaus = np.array(modelTaus)
+    modelGamma = 1. / modelTaus
+    modelMass = np.array(modelMass) # logMass
+    modelMag = np.array(modelMag)
+    modelL = -0.4*(modelMag-3.28) # logL
+    modelLogML = modelMass - modelL
+    good = np.where(np.isfinite(modelTaus) & np.isfinite(modelLogML))[0]
+    ax.scatter(modelLogML[good], modelGamma[good], c='k', marker='o', s=0.1)
+    ax.set_ylabel(clabel)
+
+def plot_scatter_zsolar(ax, ccTable, clabel):
+    modelZ = []
+    modelMass = []
+    modelMag = []
+    for x in ccTable.models:
+        modelZ.append(x['Z'])
+        modelMass.append(x['mass'])
+        modelMag.append(x['TMASS_Ks'])
+    modelZ = np.array(modelZ)
+    modelZsolar = np.log10(modelZ / 0.019)
+    modelMass = np.array(modelMass) # logMass
+    modelMag = np.array(modelMag)
+    modelL = -0.4*(modelMag-3.28) # logL
+    modelLogML = modelMass - modelL
+    good = np.where(np.isfinite(modelZsolar) & np.isfinite(modelLogML))[0]
+    ax.scatter(modelLogML[good], modelZsolar[good], c='k', marker='o', s=0.1)
+    ax.set_ylabel(clabel)
 
 if __name__ == '__main__':
     main()
