@@ -14,22 +14,80 @@ import numpy as np
 
 from fsps import FSPSLibrary
 from fsps import ParameterSet
+import cctable
 
 TUNIVERSE = 13.7 # age of universe supposed in Gyr
 
 def main():
-    define_library = True
-    compute_models = True
-    make_table = True
+    libname = "zibetti"
+    h5name = libname+".h5"
+    define_library = False
+    compute_models = False
+    make_table = False
+    make_cc = True
+    plot_ml = True
 
-    library = ZibettiLibrary("zibetti")
+    library = ZibettiLibrary(libname)
     if define_library:
         library.reset()
         library.define_samples()
     if compute_models:
         library.compute_models(nThreads=8, maxN=100)
     if make_table:
-        library.create_table("zibetti.h5", clobber=True)
+        library.create_table(h5name, clobber=True)
+    if make_cc:
+        ccTable = cctable.CCTable(h5name)
+        ccTable.make("megacam_gi_iK", ("MegaCam_i","TMASS_Ks"),
+           ("MegaCam_g","MegaCam_i"), binsize=0.05, clobber=True)
+        ccTable = cctable.CCTable(h5name)
+        ccTable.open("megacam_gi_iK")
+        ccTable.mass_light_table()
+        ccTable.median_grid("tau")
+        ccTable.median_grid("tau", log=True, medName="logTau")
+        ccTable.median_grid("Z", log=True, medName="logZ")
+        ccTable.median_grid("dust2")
+        ccTable.median_grid("sf_start")
+        ccTable.median_grid("tburst")
+        ccTable.median_grid("fburst")
+    if plot_ml:
+        xlabel = r"$i^\prime-K_s$"
+        ylabel = r"$g^\prime-i^\prime$"
+
+        ccTable = cctable.CCTable(h5name)
+        ccTable.open("megacam_gi_iK")
+
+        plot = cctable.CCPlot(ccTable, "ML_bol")
+        plot.plot(libname+"_grid_ml", xlabel, ylabel, r"$\log M/L_\mathrm{bol}$",
+                medMult=1, rmsLim=(0.,10), rmsMult=1)
+
+        plot = cctable.CCPlot(ccTable, "tau")
+        plot.plot(libname+"_grid_tau", xlabel, ylabel, r"$\tau$ Gyr",
+                rmsMult=5)
+
+        plot = cctable.CCPlot(ccTable, "logTau")
+        plot.plot(libname+"_grid_log_tau", xlabel, ylabel, r"$\log \tau$ Gyr",
+                medMult=0.2, rmsMult=0.1)
+
+        plot = cctable.CCPlot(ccTable, "sf_start")
+        plot.plot(libname+"_grid_tform", xlabel, ylabel, r"$t_\mathrm{start}$ Gyr",
+                medMult=2)
+
+        plot = cctable.CCPlot(ccTable, "tburst")
+        plot.plot(libname+"_grid_tburst", xlabel, ylabel, r"$t_\mathrm{burst}$ Gyr",
+                medMult=2, rmsMult=0.5)
+
+        plot = cctable.CCPlot(ccTable, "fburst")
+        plot.plot(libname+"_grid_fburst", xlabel, ylabel, r"$f_\mathrm{burst}$",
+                medMult=0.1, rmsMult=0.05)
+
+        plot = cctable.CCPlot(ccTable, "logZ")
+        plot.plot(libname+"_grid_logZ", xlabel, ylabel, r"$\log Z$",
+                medMult=0.5, rmsMult=0.2)
+
+        plot = cctable.CCPlot(ccTable, "dust2")
+        plot.plot(libname+"_grid_dust2", xlabel, ylabel, r"$\mathrm{dust}_2$",
+                medMult=0.1, rmsMult=0.05)
+
 
 class ZibettiLibrary(FSPSLibrary):
     """A Monte Carlo stellar population library designed around the Zibetti
