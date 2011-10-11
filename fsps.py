@@ -311,8 +311,8 @@ class QueueRunner(object):
             self.collection.update({"_id": modelName},
                 {"$set": {"np_data": {'_type': 'np.ndarray', 'data':binData}}})
             # Remove data files
-            #os.remove(magPath)
-            #os.remove(specPath)
+            os.remove(magPath)
+            os.remove(specPath)
 
             # load data with pickle.load(doc['np_data']['data])
             
