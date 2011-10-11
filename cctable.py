@@ -108,12 +108,9 @@ class CCTable(object):
         for x in self.models:
             massArray.append(x['mass'])
             LArray.append(x['lbol'])
-        massArray = np.array(massArray)
-        LArray = np.array(LArray)
-        modelML = np.array(massArray / LArray)
-        #modelML = np.array(modelMLs, dtype=np.float)
-        #modelML = np.array([x['mass']/x['lbol'] for x in self.models],
-        #        dtype=np.float)
+        massArray = np.array(massArray) # log Mass
+        LArray = np.array(LArray) # log L_bol
+        modelML = massArray - LArray # log M/L
         medianMLs = np.zeros(self.cells.nrows, dtype=np.float)
         sigmaMLs = np.zeros(self.cells.nrows, dtype=np.float)
         for i in xrange(self.cells.nrows):
@@ -259,10 +256,10 @@ class CCTable(object):
         for x in self.models:
             massArray.append(x['mass'])
             magsArray.append(x[bandname])
-        modelMass = np.array(massArray)
+        modelMass = np.array(massArray) # log Mass
         modelMags = np.array(magsArray)
-        modelLLsolar = 10.**(-0.4*(modelMags - solarMag))
-        modelML = modelMass / modelLLsolar
+        modelLLsolar = -0.4*(modelMags - solarMag) # log L
+        modelML = modelMass - modelLLsolar
         medianVals = np.zeros(self.cells.nrows, dtype=np.float)
         sigmaVals = np.zeros(self.cells.nrows, dtype=np.float)
         for i in xrange(self.cells.nrows):
