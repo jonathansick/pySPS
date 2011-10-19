@@ -6,31 +6,31 @@ from fsps import ParameterSet
 import matplotlib.pyplot as plt
 
 def main():
-    #tinyLibrary = TinySSPGrid("tinyssp", dbname="fsps")
-    #tinyLibrary.reset()
-    #tinyLibrary.generate_grid()
-    #tinyLibrary.compute_models(nThreads=1)
+    tinyLibrary = TinySSPGrid("tinyssp", dbname="fsps")
+    tinyLibrary.reset()
+    tinyLibrary.generate_grid()
+    tinyLibrary.compute_models(nThreads=1)
     #tinyLibrary.create_table("tiny_table.h5")
 
-    #plot_sfh(tinyLibrary)
+    plot_sfh_library(tinyLibrary)
 
-    tinyTage = TinyTageGrid("tinytage", dbname="fsps")
+    #tinyTage = TinyTageGrid("tinytage", dbname="fsps")
     #tinyTage.reset()
     #tinyTage.generate_grid()
     #tinyTage.compute_models(nThreads=1)
-    tinyTage.create_table("tiny_tage.h5")
-    tinyTage.print_npdata()
+    #tinyTage.create_table("tiny_tage.h5")
+    #tinyTage.print_npdata()
 
 class TinySSPGrid(FSPSLibrary):
     """A small grid SSPs for three metallicities."""
     
     def generate_grid(self):
         """Create the model grid."""
-        taus = [0.1,1.,10.]
-        for i, tau in enumerate(taus):
+        zmets = [3, 10, 20]
+        for i, zmet in enumerate(zmets):
             pset = ParameterSet(None, sfh=1,
-                    zmet=20,
-                    tau=tau)
+                    zmet=zmet,
+                    tau=10.0)
             self.register_pset(pset)
 
 class TinyTageGrid(FSPSLibrary):
@@ -39,10 +39,11 @@ class TinyTageGrid(FSPSLibrary):
     def generate_grid(self):
         """Create the model grid."""
         taus = [0.1,1.,10.]
-        for i, tau in enumerate(taus):
+        zmets = [3, 10, 20]
+        for i, zmet in enumerate(zmets):
             pset = ParameterSet(None, sfh=1, tage=13.7,
-                    zmet=20,
-                    tau=tau)
+                    zmet=zmet,
+                    tau=10.)
             self.register_pset(pset)
 
     def print_npdata(self):
@@ -113,9 +114,9 @@ def plot_sfh_library(library):
     axGI.set_xlim(0.,13.7)
     axML.set_xlim(0.,13.7)
     axiKs.set_xlim(0.,13.7)
-    axML.set_ylim(-1.4,1.)
-    axMass.set_ylim(-2,1.)
-    axSFR.set_ylim(-12.,-7.)
+    #axML.set_ylim(-1.4,1.)
+    #axMass.set_ylim(-2,1.)
+    #axSFR.set_ylim(-12.,-7.)
 
     axSFR.legend(lines,labels, loc='right')
 

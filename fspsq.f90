@@ -9,7 +9,7 @@ program fspsq
     implicit none
 
     character(len=64) :: input_path
-    integer :: imodel, n_models, zmet
+    integer :: zi, imodel, n_models, zmet
     character(len=256) :: model_name, output_path
     character(len=1) :: s_sfh, s_dust_type, s_imf_type, s_vega, s_redshift
     character(len=2) :: s_zmet
@@ -38,14 +38,26 @@ program fspsq
     ! Cast command line parameters to integers
     read (s_n_models,*) n_models
     read (s_sfh,*) pset%sfh
-    read (s_zmet,*) pset%zmet
+    ! read (s_zmet,*) pset%zmet
     read (s_dust_type,*) dust_type
     read (s_imf_type,*) imf_type
     read (s_vega,*) compute_vega_mags
     read (s_redshift,*) redshift_colors
     
-    ! Initialize the isochrones
-    call SPS_SETUP(pset%zmet)
+    ! Initialize the isochrones for all Z
+    call SPS_SETUP(-1)
+
+    !set up all SSPs at once
+    spec_ssp_zz = 0.0
+    do zi=1,nz
+        ! need to set blue HB and delta AGB before this
+        pset%zmet = zi
+        call SSP_GEN(pset,mass_ssp_zz(zi,:), &
+            lbol_ssp_zz(zi,:), spec_ssp_zz(zi,:,:))
+    end do
+
+    ! The input file currently uses just one metallicity for all models
+    read(s_zmet,*) pset%zmet
     
     write (*,*) trim(input_path)
     open(15,file=trim(input_path),status='OLD')
@@ -60,9 +72,15 @@ program fspsq
             pset%sbss, pset%fbhb, pset%pagb
         write (*,*) trim(model_name), pset%zmet, pset%tau
         !compute the SSP
-        CALL SSP_GEN(pset,mass_ssp,lbol_ssp,spec_ssp)
+        !CALL SSP_GEN(pset,mass_ssp,lbol_ssp,spec_ssp)
         !compute mags and write out mags and spec for SSP
         output_path = trim(model_name)//'.out'
+        ! Set mass, lbol and spec for these ssp
+        zi = pset%zmet
+        mass_ssp = mass_ssp_zz(zi,:)
+        lbol_ssp = lbol_ssp_zz(zi,:)
+        spec_ssp = spec_ssp_zz(zi,:,:)
+        !spec = 10**spec-tiny_number ! why is this done?
         CALL COMPSP(3,1,output_path,mass_ssp,lbol_ssp,spec_ssp,pset,ocompsp)
     end do
     imodel = imodel-1
