@@ -47,7 +47,6 @@ class FSPSLibrary(object):
         
         Parameters
         ----------
-        
         nThreads : int, optional
             Number of processes to be spawned, for multiprocessing. If set
             to `1`, multiprocessing is not used; useful for debugging.
