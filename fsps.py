@@ -237,6 +237,10 @@ class QueueRunner(object):
 
     def _make_common_var_sets(self):
         """Make a list of common variable setups.
+
+        The idea is that some of the fortran COMMON BLOCK parameters cannot
+        be changed after `sps_setup` is called. Thus each run of fspsq is
+        with models that share common block paramters.
         
         .. note:: This merely lists all *possible* combinations of common variable
         configurations. There is not guarantee that there are models needing
@@ -244,39 +248,37 @@ class QueueRunner(object):
         
         Parameters
         ----------
-        
         c : pymongo.Collection instance
         
         Returns
         -------
-        
         List of dictionaries. Each dictionary has keys representing common
-        variables: sfh, zmet, dust_type, imf_type, compute_vega_mags, redshift_colors
+        variables: sfh, dust_type, imf_type, compute_vega_mags, redshift_colors
         """
-        params = ['sfh', 'zmet', 'dust_type', 'imf_type',
+        params = ['sfh', 'dust_type', 'imf_type',
             'compute_vega_mags', 'redshift_colors']
         possibleValues = {}
         for param in params:
             possibleValues[param] = self.collection.distinct("pset."+param)
         groups = []
         for isfh in possibleValues['sfh']:
-            for izmet in possibleValues['zmet']:
-                for idust_type in possibleValues['dust_type']:
-                    for iimf_type in possibleValues['imf_type']:
-                        for ivega in possibleValues['compute_vega_mags']:
-                            for iredshift in possibleValues['redshift_colors']:
-                                groups.append({"pset.sfh":isfh,"pset.zmet":izmet,
-                                    "pset.dust_type":idust_type,"pset.imf_type":iimf_type,
-                                    "pset.compute_vega_mags":ivega,
-                                    "pset.redshift_colors":iredshift})
+            for idust_type in possibleValues['dust_type']:
+                for iimf_type in possibleValues['imf_type']:
+                    for ivega in possibleValues['compute_vega_mags']:
+                        for iredshift in possibleValues['redshift_colors']:
+                            groups.append({"pset.sfh":isfh,
+                                "pset.dust_type":idust_type,
+                                "pset.imf_type":iimf_type,
+                                "pset.compute_vega_mags":ivega,
+                                "pset.redshift_colors":iredshift})
         return groups
 
     def _make_shell_command(self, fspsqPath, commandFilePath, nModels, varSet):
         """Crafts the command for running `fspsq`, returning a string."""
-        cmd = "%s %s %i %i %02i %i %i %i %i" % (fspsqPath, commandFilePath, nModels,
-            varSet['pset.sfh'], varSet['pset.zmet'], varSet['pset.dust_type'],
-            varSet['pset.imf_type'], varSet['pset.compute_vega_mags'],
-            varSet['pset.redshift_colors'])
+        cmd = "%s %s %i %i %i %i %i %i" % (fspsqPath, commandFilePath,
+                nModels, varSet['pset.sfh'], varSet['pset.dust_type'],
+                varSet['pset.imf_type'], varSet['pset.compute_vega_mags'],
+                varSet['pset.redshift_colors'])
         return cmd
 
     def _gather_fsps_outputs(self, modelNames, getMags=True, getSpec=True):
@@ -466,9 +468,9 @@ class ParameterSet(object):
                 self.p[k] = v
     
     def command(self):
-        """Write the string for this paramter set."""
-        # These are pset variables, (aside from sfh and zmet)
-        dt = [("zred","%.2f"),("tau","%.10f"),("const","%.4f"),
+        """Write the string for this parameter set."""
+        # These are pset variables, (aside from sfh)
+        dt = [("zred","%.2f"),("zmet","%02i"),("tau","%.10f"),("const","%.4f"),
                 ("sf_start","%.2f"),("tage","%.4f"),("fburst","%.4f"),
                 ("tburst","%.4f"),("imf1","%.2f"),("imf2","%.2f"),
                 ("imf3","%.2f"),("vdmc","%.2f"),("mdave","%.1f"),
