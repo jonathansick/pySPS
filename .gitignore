@@ -7,4 +7,5 @@ fsps/
 fspsq
 processor*
 *.h5
-
+*.pdf
+*.png
