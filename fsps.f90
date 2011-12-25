@@ -31,30 +31,33 @@ contains
         write (*,*) 'Hello, exquisitely brave world!'
     end subroutine
 
-    !subroutine setup_all_ssp(_imf_type, _imf1, _imf2, _imf3, _vdmc, &
-    !    _mdave, _dell, _delt, _sbss, _fbhb, _pagb)
-    !    ! Dependent on imf, sbss, fbhb, delt, dell, pagb, redgb
-    !    imf_type = _imf_type
-    !    pset%imf1 = _imf1
-    !    pset%imf2 = _imf2
-    !    pset%imf3 = _imf3
-    !    pset%vdmc = _vdmc
-    !    pset%mdave = _mdave
-    !    pset%dell = _dell
-    !    pset%delt = _delt
-    !    pset%sbss = _sbss
-    !    pset%fbhb = _fbhb
-    !    pset%pagb = _pagb
-    !    
-    !    !set up all SSPs at once (i.e., all metallicities)
-    !    spec_ssp_zz = 0.0
-    !    do zi=1,nz
-    !        ! need to set blue HB and delta AGB before this
-    !        pset%zmet = zi
-    !        call ssp_gen(pset,mass_ssp_zz(zi,:), &
-    !            lbol_ssp_zz(zi,:), spec_ssp_zz(zi,:,:))
-    !    end do
-    !end subroutine
+    subroutine setup_all_ssp(imf, imf1, imf2, imf3, vdmc, &
+            mdave, dell, delt, sbss, fbhb, pagb)
+        integer, intent(in) :: imf
+        real, intent(in) :: imf1, imf2, imf3, vdmc, mdave
+        real, intent(in) :: dell, delt, sbss, fbhb, pagb
+        ! Dependent on imf, sbss, fbhb, delt, dell, pagb, redgb
+        imf_type = imf
+        pset%imf1 = imf1
+        pset%imf2 = imf2
+        pset%imf3 = imf3
+        pset%vdmc = vdmc
+        pset%mdave = mdave
+        pset%dell = dell
+        pset%delt = delt
+        pset%sbss = sbss
+        pset%fbhb = fbhb
+        pset%pagb = pagb
+        
+        !set up all SSPs at once (i.e., all metallicities)
+        spec_ssp_zz = 0.0
+        do zi=1,nz
+            ! need to set blue HB and delta AGB before this
+            pset%zmet = zi
+            call ssp_gen(pset,mass_ssp_zz(zi,:), &
+                lbol_ssp_zz(zi,:), spec_ssp_zz(zi,:,:))
+        end do
+    end subroutine
 
     !subroutine comp_sp(model_name, _dust_type, _zmet, _sfh, _tau, _const, &
     !        _fburst, _tburst, _dust_tesc, _dust1, _dust2, _dust_clumps, &

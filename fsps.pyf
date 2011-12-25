@@ -7,14 +7,27 @@ python module fsps ! in
             use sps_utils
             use sps_vars
             use nrtype
-            #type(params) :: pset
-            #type(compspout) dimension((ntfull)) :: ocompsp
-            #integer :: zi
+            !type(params) :: pset
+            !type(compspout) dimension((ntfull)) :: ocompsp
+            integer :: zi
             integer :: my_foo_var
             subroutine setup(use_vega_mags,apply_redshift) ! in :fsps:fsps.f90:fsps
                 integer intent(in) :: use_vega_mags
                 integer intent(in) :: apply_redshift
             end subroutine setup
+            subroutine setup_all_ssp(imf,imf1,imf2,imf3,vdmc,mdave,dell,delt,sbss,fbhb,pagb) ! in :fsps:fsps.f90:fsps
+                integer intent(in) :: imf
+                real intent(in) :: imf1
+                real intent(in) :: imf2
+                real intent(in) :: imf3
+                real intent(in) :: vdmc
+                real intent(in) :: mdave
+                real intent(in) :: dell
+                real intent(in) :: delt
+                real intent(in) :: sbss
+                real intent(in) :: fbhb
+                real intent(in) :: pagb
+            end subroutine setup_all_ssp
         end module fsps
     end interface 
 end python module fsps
