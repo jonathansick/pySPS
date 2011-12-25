@@ -17,10 +17,10 @@ import glob
 fspsSrcs = glob.glob("fsps/*.f90")
 nrSrcs = glob.glob("fsps/nr/*.f90")
 fPaths = fspsSrcs + nrSrcs
+oPaths = glob.glob("*.o")
 
 # apparently gnu95 implies gfortran
-#cmd = "f2py -c --fcompiler=gnu95 fsps.pyf %s" % " ".join(fPaths)
-cmd = "f2py -c --fcompiler=gnu95 fsps.pyf fsps.f90"
+cmd = "f2py -c --fcompiler=gnu95 fsps.pyf fsps.f90 %s" % " ".join(oPaths)
 print cmd
 os.system(cmd)
 

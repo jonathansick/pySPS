@@ -1,0 +1,17 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module fsps ! in 
+    interface  ! in :fsps
+        module fsps ! in :fsps:fsps.f90
+            use sps_utils
+            use sps_vars
+            use nrtype
+            subroutine setup ! in :fsps:fsps.f90:fsps
+            end subroutine setup
+        end module fsps
+    end interface 
+end python module fsps
+
+! This file was auto-generated with f2py (version:2).
+! See http://cens.ioc.ee/projects/f2py2e/

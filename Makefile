@@ -1,5 +1,5 @@
 F90 = gfortran
-F90FLAGS = -O3 -march=native -cpp
+F90FLAGS = -O3 -march=native -cpp -fPIC
 
 PROGS = fspsq
 

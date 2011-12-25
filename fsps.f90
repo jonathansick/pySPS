@@ -2,7 +2,7 @@
 ! for making stellar pops
 
 module fsps
-    !use sps_vars; use nrtype; use sps_utils
+    use sps_vars; use nrtype; use sps_utils
     implicit none
 
     !type(params) :: pset
@@ -28,7 +28,7 @@ contains
         !redshift_colors = _redshift_colors
         !! Load isochrones and stellar libraries
         !call sps_setup(-1)
-        write (*,*) 'Hello, world!'
+        write (*,*) 'Hello, brave world!'
     end subroutine
 
     !subroutine setup_all_ssp(_imf_type, _imf1, _imf2, _imf3, _vdmc, &
