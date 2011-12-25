@@ -22,13 +22,13 @@ module fsps
 
 contains
     ! General setup that loads isochrones and stellar libraries
-    subroutine setup() ! _vega, _redshift_colors
-        !integer, intent(in) :: _vega, _redshift_colors
-        !compute_vega_mags = _vega
-        !redshift_colors = _redshift_colors
-        !! Load isochrones and stellar libraries
-        !call sps_setup(-1)
-        write (*,*) 'Hello, exquisite brave world!'
+    subroutine setup(use_vega_mags, apply_redshift)
+        integer, intent(in) :: use_vega_mags, apply_redshift
+        compute_vega_mags = use_vega_mags
+        redshift_colors = apply_redshift
+        ! Load isochrones and stellar libraries
+        call sps_setup(-1)
+        write (*,*) 'Hello, exquisitely brave world!'
     end subroutine
 
     !subroutine setup_all_ssp(_imf_type, _imf1, _imf2, _imf3, _vdmc, &
