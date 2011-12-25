@@ -7,7 +7,7 @@ module fsps
 
     type(params) :: pset
     type(COMPSPOUT), dimension(ntfull) :: ocompsp
-    integer :: zi
+    integer :: zi, my_foo_var
 
     !integer, intent(in) :: _imf_type, _dust_type, _zmet, _sfh,
     

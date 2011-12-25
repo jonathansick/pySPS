@@ -10,6 +10,7 @@ python module fsps ! in
             !type(params) :: pset
             !type(compspout) dimension((ntfull)) :: ocompsp
             !integer :: zi
+            integer :: my_foo_var
             subroutine setup ! in :fsps:fsps.f90:fsps
             end subroutine setup
         end module fsps
