@@ -5,9 +5,9 @@ module fsps
     use sps_vars; use nrtype; use sps_utils
     implicit none
 
-    !type(params) :: pset
-    !type(COMPSPOUT), dimension(ntfull) :: ocompsp
-    !integer :: zi
+    type(params) :: pset
+    type(COMPSPOUT), dimension(ntfull) :: ocompsp
+    integer :: zi
 
     !integer, intent(in) :: _imf_type, _dust_type, _zmet, _sfh,
     
@@ -28,7 +28,7 @@ contains
         !redshift_colors = _redshift_colors
         !! Load isochrones and stellar libraries
         !call sps_setup(-1)
-        write (*,*) 'Hello, brave world!'
+        write (*,*) 'Hello, exquisite brave world!'
     end subroutine
 
     !subroutine setup_all_ssp(_imf_type, _imf1, _imf2, _imf3, _vdmc, &

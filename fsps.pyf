@@ -7,6 +7,9 @@ python module fsps ! in
             use sps_utils
             use sps_vars
             use nrtype
+            !type(params) :: pset
+            !type(compspout) dimension((ntfull)) :: ocompsp
+            !integer :: zi
             subroutine setup ! in :fsps:fsps.f90:fsps
             end subroutine setup
         end module fsps
