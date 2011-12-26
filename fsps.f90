@@ -101,6 +101,7 @@ contains
             fburst, tburst, dust_tesc, dust1, dust2, dust_clumps, &
             frac_no_dust, dust_index, mwr, wgp1, wgp2, wgp3, &
             duste_gamma, duste_umin, duste_qpah, tage)
+        character(len=256) :: output_path
         integer, intent(in) :: dust, zmet, sfh
         real, intent(in) :: tau, const, fburst, tburst, dust_tesc
         real, intent(in) :: dust1, dust2, dust_clumps, frac_no_dust
@@ -130,10 +131,9 @@ contains
         pset%duste_qpah = duste_qpah
         ! For calling COMPSP
         ! depends on zmet, SFH, dust
-        ! we want to directly return the results, for now use file output
-        !output_path = trim(model_name)//'.out'
-        !call compsp(3, 1, output_path, mass_ssp_zz(zmet,:), &
-        !    lbol_ssp_zz(zmet,:), spec_ssp_zz(zmet,:,:), pset, ocompsp)
+        output_path = "foo"
+        call compsp(0, 1, output_path, mass_ssp_zz(zmet,:), &
+            lbol_ssp_zz(zmet,:), spec_ssp_zz(zmet,:,:), pset, ocompsp)
         write (*,*) 'comp_sp() complete'
     end subroutine
 
@@ -153,6 +153,18 @@ contains
     subroutine get_n_masses(n_masses)
         integer, intent(out) :: n_masses
         n_masses = nm
+    end subroutine
+
+    ! Get mags for a single age given by index iage
+    subroutine get_mags_at_age(iage, n_bands, mag_array)
+        integer, intent(in) :: iage, n_bands
+        real, dimension(n_bands), intent(out) :: mag_array
+        write (*,*) 'in get_mags_at_age'
+        do zi=1,n_bands
+            write (*,*) ocompsp(iage)%mags(zi)
+        end do
+        mag_array = ocompsp(iage)%mags
+        write (*,*) 'copied mag_array'
     end subroutine
 
 end module

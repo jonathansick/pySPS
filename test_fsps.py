@@ -2,6 +2,7 @@
 # encoding: utf-8
 """Burn-in tests for the fsps f2py wrapper"""
 
+import numpy as np
 import fsps
 
 def main():
@@ -37,15 +38,17 @@ def main():
     nBands = fsps.fsps.get_n_bands()
     nAges = fsps.fsps.get_n_ages()
     nMasses = fsps.fsps.get_n_masses()
+    print "There are", nBands, "bands"
+    print "There are", nAges, "ages"
+    print "There are", nMasses, "masses"
     fsps.fsps.setup_all_ssp(imf, imf1, imf2, imf3, vdmc, mdave, dell, delt,
             sbss, fbhb, pagb)
     fsps.fsps.comp_sp(dust_type, zmet, sfh, tau, const, 
             fburst, tburst, dust_tesc, dust1, dust2, dust_clumps, 
             frac_no_dust, dust_index, mwr, wgp1, wgp2, wgp3, 
             duste_gamma, duste_umin, duste_qpah, tage)
-    print "There are", nBands, "bands"
-    print "There are", nAges, "ages"
-    print "There are", nMasses, "masses"
+    mags = fsps.fsps.get_mags_at_age(120, nBands) # index 120 in age array
+    print "Mags:", mags
     print "All tests complete!"
 
 if __name__ == '__main__':

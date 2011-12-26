@@ -84,6 +84,11 @@ python module fsps ! in
             subroutine get_n_masses(n_masses) ! in :fsps:fsps.f90:fsps
                 integer intent(out) :: n_masses
             end subroutine get_n_masses
+            subroutine get_mags_at_age(iage,n_bands,mag_array) ! in :fsps:fsps.f90:fsps
+                integer intent(in) :: iage
+                integer intent(in) :: n_bands
+                real dimension(n_bands),intent(out),depend(n_bands) :: mag_array
+            end subroutine get_mags_at_age
         end module fsps
     end interface 
 end python module fsps
