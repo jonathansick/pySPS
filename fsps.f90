@@ -6,7 +6,9 @@ module fsps
     implicit none
 
     type(params) :: pset
+    !f2py intent(hide) pset
     type(COMPSPOUT), dimension(ntfull) :: ocompsp
+    !f2py intent(hide) ocompsp
     integer :: zi, my_foo_var
 
 contains

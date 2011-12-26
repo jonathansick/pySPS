@@ -7,8 +7,8 @@ python module fsps ! in
             use sps_utils
             use sps_vars
             use nrtype
-            !type(params) :: pset
-            !type(compspout) dimension((ntfull)) :: ocompsp
+            type(params) intent(hide) :: pset
+            type(compspout) dimension((ntfull)),intent(hide) :: ocompsp
             integer :: zi
             integer :: my_foo_var
             subroutine setup(use_vega_mags,apply_redshift) ! in :fsps:fsps.f90:fsps
