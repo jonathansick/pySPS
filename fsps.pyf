@@ -28,6 +28,30 @@ python module fsps ! in
                 real intent(in) :: fbhb
                 real intent(in) :: pagb
             end subroutine setup_all_ssp
+            subroutine comp_sp(model_name,dust_type,zmet,sfh,tau,const_bn,fburst,tburst,dust_tesc,dust1,dust2,dust_clumps,frac_no_dust,dust_index,mwr,wgp1,wgp2,wgp3,duste_gamma,duste_umin,duste_qpah,tage) ! in :fsps:fsps.f90:fsps
+                character*256 intent(in) :: model_name
+                real :: dust_type
+                integer intent(in) :: zmet
+                integer intent(in) :: sfh
+                real intent(in) :: tau
+                real intent(in) :: const_bn
+                real intent(in) :: fburst
+                real intent(in) :: tburst
+                real intent(in) :: dust_tesc
+                real intent(in) :: dust1
+                real intent(in) :: dust2
+                real intent(in) :: dust_clumps
+                real intent(in) :: frac_no_dust
+                real intent(in) :: dust_index
+                real intent(in) :: mwr
+                integer intent(in) :: wgp1
+                integer intent(in) :: wgp2
+                integer intent(in) :: wgp3
+                real intent(in) :: duste_gamma
+                real intent(in) :: duste_umin
+                real intent(in) :: duste_qpah
+                real intent(in) :: tage
+            end subroutine comp_sp
         end module fsps
     end interface 
 end python module fsps
