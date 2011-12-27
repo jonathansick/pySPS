@@ -170,12 +170,37 @@ contains
         write (*,*) 'copied mag_array'
     end subroutine
 
+    ! Get the age, mass, bolometric luminosity, SFR and dust mass at
+    ! a single age
+    subroutine get_stats_at_age(iage, age, mass, lbol, sfr, dust_mass)
+        integer, intent(in) :: iage
+        real, intent(out) :: age, mass, lbol, sfr, dust_mass
+        age = ocompsp(iage)%age
+        mass = ocompsp(iage)%mass_csp
+        lbol = ocompsp(iage)%lbol_csp
+        sfr = ocompsp(iage)%sfr
+        dust_mass = ocompsp(iage)%mdust
+    end subroutine
+
     ! Get mags for all ages
     subroutine get_mags(n_bands, n_ages, mag_array)
         integer, intent(in) :: n_bands, n_ages
         real, dimension(n_bands,n_ages), intent(out) :: mag_array
         do zi=1,n_ages
             mag_array(:,zi) = ocompsp(zi)%mags
+        end do
+    end subroutine
+
+    ! Get stellar pop statistics for all ages
+    subroutine get_stats(n_ages, age, mass, lbol, sfr, dust_mass)
+        integer, intent(in) :: n_ages
+        real, dimension(n_ages), intent(out) :: age, mass, lbol, sfr, dust_mass
+        do zi=1,n_ages
+            age(zi) = ocompsp(zi)%age
+            mass(zi) = ocompsp(zi)%mass_csp
+            lbol(zi) = ocompsp(zi)%lbol_csp
+            sfr(zi) = ocompsp(zi)%sfr
+            dust_mass(zi) = ocompsp(zi)%mdust
         end do
     end subroutine
 

@@ -49,9 +49,12 @@ def main():
             duste_gamma, duste_umin, duste_qpah, tage)
     mags = fsps.fsps.get_mags_at_age(120, nBands) # index 120 in age array
     print "Mags:", mags
+    print fsps.fsps.get_stats_at_age(120)
     allMags = fsps.fsps.get_mags(nBands, nAges)
     print "All mags:", allMags
     print "All mags shape", allMags.shape
+    allAges, allMass, allLbol, allSFR, allMDust = fsps.fsps.get_stats(nAges)
+    print allAges
     print "All tests complete!"
 
 if __name__ == '__main__':
