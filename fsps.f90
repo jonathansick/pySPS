@@ -156,6 +156,9 @@ contains
     end subroutine
 
     ! Get mags for a single age given by index iage
+    ! todo figure out how this interacts with setting tage; does ocompsp
+    ! simply place all data at the first index? Or at the proper index?
+    ! Or is tage only related to writing output files?
     subroutine get_mags_at_age(iage, n_bands, mag_array)
         integer, intent(in) :: iage, n_bands
         real, dimension(n_bands), intent(out) :: mag_array
@@ -165,6 +168,15 @@ contains
         end do
         mag_array = ocompsp(iage)%mags
         write (*,*) 'copied mag_array'
+    end subroutine
+
+    ! Get mags for all ages
+    subroutine get_mags(n_bands, n_ages, mag_array)
+        integer, intent(in) :: n_bands, n_ages
+        real, dimension(n_bands,n_ages), intent(out) :: mag_array
+        do zi=1,n_ages
+            mag_array(:,zi) = ocompsp(zi)%mags
+        end do
     end subroutine
 
 end module

@@ -89,6 +89,11 @@ python module fsps ! in
                 integer intent(in) :: n_bands
                 real dimension(n_bands),intent(out),depend(n_bands) :: mag_array
             end subroutine get_mags_at_age
+            subroutine get_mags(n_bands,n_ages,mag_array) ! in :fsps:fsps.f90:fsps
+                integer intent(in) :: n_bands
+                integer intent(in) :: n_ages
+                real dimension(n_bands,n_ages),intent(out),depend(n_bands,n_ages) :: mag_array
+            end subroutine get_mags
         end module fsps
     end interface 
 end python module fsps
