@@ -9,3 +9,7 @@ processor*
 *.h5
 *.pdf
 *.png
+*.o
+*.so
+*.mod
+
