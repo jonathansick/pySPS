@@ -131,6 +131,16 @@ python module fsps ! in
                 real dimension(n_mass),intent(out),depend(n_mass) :: wght_out
                 real dimension(n_mass,n_mags),intent(out),depend(n_mass,n_mags) :: mags_out
             end subroutine get_isochrone
+            subroutine get_isochrone_simple(zz,tt,n_mass,n_mags) ! in :fsps:fsps.f90:fsps
+                integer intent(in) :: zz
+                integer intent(in) :: tt
+                integer intent(in) :: n_mass
+                integer intent(in) :: n_mags
+            end subroutine get_isochrone_simple
+            subroutine my_write_isochrone(file,zz) ! in :fsps:fsps.f90:fsps
+                character*100 intent(in) :: file
+                integer intent(in) :: zz
+            end subroutine my_write_isochrone
         end module fsps
     end interface 
 end python module fsps

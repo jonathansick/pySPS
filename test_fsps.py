@@ -41,20 +41,31 @@ def main():
     print "There are", nBands, "bands"
     print "There are", nAges, "ages"
     print "There are", nMasses, "masses"
-    fsps.fsps.setup_all_ssp(imf, imf1, imf2, imf3, vdmc, mdave, dell, delt,
-            sbss, fbhb, pagb)
-    fsps.fsps.comp_sp(dust_type, zmet, sfh, tau, const, 
-            fburst, tburst, dust_tesc, dust1, dust2, dust_clumps, 
-            frac_no_dust, dust_index, mwr, wgp1, wgp2, wgp3, 
-            duste_gamma, duste_umin, duste_qpah, tage)
-    mags = fsps.fsps.get_mags_at_age(120, nBands) # index 120 in age array
-    print "Mags:", mags
-    print fsps.fsps.get_stats_at_age(120)
-    allMags = fsps.fsps.get_mags(nBands, nAges)
-    print "All mags:", allMags
-    print "All mags shape", allMags.shape
-    allAges, allMass, allLbol, allSFR, allMDust = fsps.fsps.get_stats(nAges)
-    print allAges
+    #fsps.fsps.setup_all_ssp(imf, imf1, imf2, imf3, vdmc, mdave, dell, delt,
+    #        sbss, fbhb, pagb)
+    #fsps.fsps.comp_sp(dust_type, zmet, sfh, tau, const, 
+    #        fburst, tburst, dust_tesc, dust1, dust2, dust_clumps, 
+    #        frac_no_dust, dust_index, mwr, wgp1, wgp2, wgp3, 
+    #        duste_gamma, duste_umin, duste_qpah, tage)
+    #mags = fsps.fsps.get_mags_at_age(120, nBands) # index 120 in age array
+    #print "Mags:", mags
+    #print fsps.fsps.get_stats_at_age(120)
+    #allMags = fsps.fsps.get_mags(nBands, nAges)
+    #print "All mags:", allMags
+    #print "All mags shape", allMags.shape
+    #allAges, allMass, allLbol, allSFR, allMDust = fsps.fsps.get_stats(nAges)
+    #print allAges
+
+
+    zz = 8
+    tt = 10
+    nMass = fsps.fsps.get_n_masses_isochrone(zz, tt) # n masses for this isoc
+    print "nMasses for isochrone", nMass
+    time, Z, massInit, logL, logT, logg, ffco, phase, wght, isocMags = \
+            fsps.fsps.get_isochrone(zz, tt, nMass, nBands)
+    print time, Z
+    print isocMags.shape
+
     print "All tests complete!"
 
 if __name__ == '__main__':
