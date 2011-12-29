@@ -84,10 +84,11 @@ python module fsps ! in
             subroutine get_n_masses(n_masses) ! in :fsps:fsps.f90:fsps
                 integer intent(out) :: n_masses
             end subroutine get_n_masses
-            subroutine get_isochrone(zz,tt) ! in :fsps:fsps.f90:fsps
+            subroutine get_n_masses_isochrone(zz,tt,nmass) ! in :fsps:fsps.f90:fsps
                 integer intent(in) :: zz
                 integer intent(in) :: tt
-            end subroutine get_isochrone
+                integer intent(out) :: nmass
+            end subroutine get_n_masses_isochrone
             subroutine get_mags_at_age(iage,n_bands,mag_array) ! in :fsps:fsps.f90:fsps
                 integer intent(in) :: iage
                 integer intent(in) :: n_bands

@@ -157,7 +157,7 @@ contains
 
     ! Returns number of masses included in a specific isochrone
     ! Use this with the get_isochrone() function
-    subroutine get_isochrone(zz, tt)
+    subroutine get_n_masses_isochrone(zz, tt, nmass)
         integer, intent(in) :: zz, tt
         integer, intent(out) :: nmass
         nmass = nmass_isoc(zz,tt)
@@ -216,7 +216,7 @@ contains
     subroutine get_isochrone(zz, tt, n_mass, n_mags, time_out, z_out, &
             mass_init_out, logl_out, logt_out, logg_out, ffco_out, &
             phase_out, wght_out, mags_out)
-        integer, intent(in) :: i, zz, tt, n_mass, n_mags
+        integer, intent(in) :: zz, tt, n_mass, n_mags
         real, intent(out) :: time_out, z_out
         real, dimension(n_mass), intent(out) :: mass_init_out
         real, dimension(n_mass), intent(out) :: logl_out
@@ -226,6 +226,7 @@ contains
         real, dimension(n_mass), intent(out) :: phase_out ! TODO how to decode
         real, dimension(n_mass), intent(out) :: wght_out
         real, dimension(n_mass, n_mags), intent(out) :: mags_out
+        integer :: i
         real(SP), dimension(n_mass) :: wght
         real(SP), dimension(nspec)  :: spec
         real(SP), dimension(nbands) :: mags ! vector of mags for FSPS
