@@ -84,6 +84,10 @@ python module fsps ! in
             subroutine get_n_masses(n_masses) ! in :fsps:fsps.f90:fsps
                 integer intent(out) :: n_masses
             end subroutine get_n_masses
+            subroutine get_isochrone(zz,tt) ! in :fsps:fsps.f90:fsps
+                integer intent(in) :: zz
+                integer intent(in) :: tt
+            end subroutine get_isochrone
             subroutine get_mags_at_age(iage,n_bands,mag_array) ! in :fsps:fsps.f90:fsps
                 integer intent(in) :: iage
                 integer intent(in) :: n_bands
@@ -110,6 +114,22 @@ python module fsps ! in
                 real dimension(n_ages),intent(out),depend(n_ages) :: sfr
                 real dimension(n_ages),intent(out),depend(n_ages) :: dust_mass
             end subroutine get_stats
+            subroutine get_isochrone(zz,tt,n_mass,n_mags,time_out,z_out,mass_init_out,logl_out,logt_out,logg_out,ffco_out,phase_out,wght_out,mags_out) ! in :fsps:fsps.f90:fsps
+                integer intent(in) :: zz
+                integer intent(in) :: tt
+                integer intent(in) :: n_mass
+                integer intent(in) :: n_mags
+                real intent(out) :: time_out
+                real intent(out) :: z_out
+                real dimension(n_mass),intent(out),depend(n_mass) :: mass_init_out
+                real dimension(n_mass),intent(out),depend(n_mass) :: logl_out
+                real dimension(n_mass),intent(out),depend(n_mass) :: logt_out
+                real dimension(n_mass),intent(out),depend(n_mass) :: logg_out
+                real dimension(n_mass),intent(out),depend(n_mass) :: ffco_out
+                real dimension(n_mass),intent(out),depend(n_mass) :: phase_out
+                real dimension(n_mass),intent(out),depend(n_mass) :: wght_out
+                real dimension(n_mass,n_mags),intent(out),depend(n_mass,n_mags) :: mags_out
+            end subroutine get_isochrone
         end module fsps
     end interface 
 end python module fsps

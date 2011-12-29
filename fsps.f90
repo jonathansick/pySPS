@@ -149,10 +149,18 @@ contains
         n_ages = ntfull
     end subroutine
 
-    ! Returns number of masses included in the isochrones
+    ! Returns max number of masses included in the isochrones
     subroutine get_n_masses(n_masses)
         integer, intent(out) :: n_masses
         n_masses = nm
+    end subroutine
+
+    ! Returns number of masses included in a specific isochrone
+    ! Use this with the get_isochrone() function
+    subroutine get_isochrone(zz, tt)
+        integer, intent(in) :: zz, tt
+        integer, intent(out) :: nmass
+        nmass = nmass_isoc(zz,tt)
     end subroutine
 
     ! Get mags for a single age given by index iage
@@ -204,4 +212,46 @@ contains
         end do
     end subroutine
 
+    ! Returns the isochrone for a given metallicity and age index
+    subroutine get_isochrone(zz, tt, n_mass, n_mags, time_out, z_out, &
+            mass_init_out, logl_out, logt_out, logg_out, ffco_out, &
+            phase_out, wght_out, mags_out)
+        integer, intent(in) :: i, zz, tt, n_mass, n_mags
+        real, intent(out) :: time_out, z_out
+        real, dimension(n_mass), intent(out) :: mass_init_out
+        real, dimension(n_mass), intent(out) :: logl_out
+        real, dimension(n_mass), intent(out) :: logt_out
+        real, dimension(n_mass), intent(out) :: logg_out
+        real, dimension(n_mass), intent(out) :: ffco_out ! C or M-type AGB
+        real, dimension(n_mass), intent(out) :: phase_out ! TODO how to decode
+        real, dimension(n_mass), intent(out) :: wght_out
+        real, dimension(n_mass, n_mags), intent(out) :: mags_out
+        real(SP), dimension(n_mass) :: wght
+        real(SP), dimension(nspec)  :: spec
+        real(SP), dimension(nbands) :: mags ! vector of mags for FSPS
+        
+        ! check that n_mass == nmass_isoc(zz,tt)
+        call IMF_WEIGHT(mini_isoc(zz,tt,:), wght, nmass_isoc(zz,tt))
+        do i = 1, nmass_isoc(zz,tt)
+            ! Compute mags on isochrone at this mass
+            call GETSPEC(zz, mini_isoc(zz,tt,i), mact_isoc(zz,tt,i), &
+                    logt_isoc(zz,tt,i), 10**logl_isoc(zz,tt,i), &
+                    phase_isoc(zz,tt,i), ffco_isoc(zz,tt,i), spec)
+            call GETMAGS(0.0, spec, mags)
+            ! Fill in outputs for this mass
+            mass_init_out(i) = mini_isoc(zz,tt,i)
+            logl_out(i) = logl_isoc(zz,tt,i)
+            logt_out(i) = logt_isoc(zz,tt,i)
+            logg_out(i) = logg_isoc(zz,tt,i)
+            ffco_out(i) = ffco_isoc(zz,tt,i)
+            phase_out(i) = phase_isoc(zz,tt,i)
+            wght_out(i) = wght(i)
+            mags_out(i,:) = mags
+        end do
+
+        ! Fill in time and metallicity of this isochrone
+        time_out = timestep_isoc(zz, tt)
+        z_out = LOG10(zlegend(zz) / 0.0190) ! log(Z/Zsolar)
+
+    end subroutine
 end module
