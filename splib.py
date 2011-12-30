@@ -179,15 +179,13 @@ class QueueRunner(object):
     
     This is typically called via :meth:`FSPSLibrary.compute_models()`.
     """
-    def __init__(self, libname, dbname, dbhost, dbport, maxN, fspsqPath,
-            tage=None):
+    def __init__(self, libname, dbname, dbhost, dbport, maxN, tage=None):
         #super(QueueRunner, self).__init__()
         self.libname = libname
         self.dbname = dbname
         self.dbhost = dbhost
         self.dbport = dbport
         self.maxN = maxN
-        self.fspsqPath = fspsqPath
 
     def __call__(self, nodeName):
         """Executed in the pool mapping; looks for and computes models."""
@@ -276,10 +274,10 @@ class QueueRunner(object):
         fsps.driver.setup_all_ssp(pset['imf_type'], pset['imf1'], pset['imf2'],
                 pset['imf3'], pset['vdmc'], pset['mdave'], pset['dell'],
                 pset['delt'], pset['sbss'], pset['fbhb'], pset['pagb'])
-        fsps.fsps.comp_sp(pset['dust_type'], pset['zmet'], pset['sfh'],
+        fsps.driver.comp_sp(pset['dust_type'], pset['zmet'], pset['sfh'],
                 pset['tau'], pset['const'], pset['fburst'], pset['tburst'],
                 pset['dust_tesc'], pset['dust1'], pset['dust2'],
-                pset['dust_clumps'], pset['frac_no_dust'], pset['dust_index'],
+                pset['dust_clumps'], pset['frac_nodust'], pset['dust_index'],
                 pset['mwr'], pset['wgp1'], pset['wgp2'], pset['wgp3'], 
                 pset['duste_gamma'], pset['duste_umin'], pset['duste_qpah'],
                 pset['tage'])

@@ -27,7 +27,8 @@ class ParameterSet(object):
                 "dust_tesc":7., "dust1":0., "dust2":0., "dust_clumps":-99.,
                 "frac_nodust":0., "dust_index":-0.7, "mwr":3.1,
                 "uvb":1., "wgp1":1, "wgp2":1, "wgp3":0, "dell":0.,
-                "delt":0., "sbss":0., "fbhb":0, "pagb":1.}
+                "delt":0., "sbss":0., "fbhb":0, "pagb":1.,
+                "duste_gamma": 0.01, "duste_umin": 1.0, "duste_qpah": 3.5}
         self.knownParameters = self.p.keys()
         # Update values with user's arguments
         for k, v in kwargs.iteritems():
