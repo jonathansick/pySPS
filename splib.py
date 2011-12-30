@@ -23,6 +23,8 @@ from sp_params import FILTER_LIST
 from parsers import MagParser
 from parsers import SpecParser
 
+import fsps # f2py wrapper to FSPS
+
 class FSPSLibrary(object):
     """For building/accessing a library of FSPS stellar population models.
     
@@ -60,16 +62,14 @@ class FSPSLibrary(object):
             Maximum number of jobs that can be given to a single
             `fspsq` process.
         """
-        fspsqPath = os.path.join(os.getcwd(), "fspsq") # echo for debug
-        commandPaths = ["processor-%i" % i for i in xrange(1, nThreads+1)]
         queue_runner = QueueRunner(self.libname, self.dbname, self.host,
-                self.port, maxN, fspsqPath)
-        # print args
+                self.port, maxN)
+        nodeNames = [str(i) for i in xrange(1,nThreads+1)]
         if nThreads > 1:
             pool = multiprocessing.Pool(processes=nThreads)
-            pool.map(queue_runner, commandPaths)
+            pool.map(queue_runner, nodeNames)
         else:
-            map(queue_runner, commandPaths)
+            map(queue_runner, nodeNames)
     
     def reset(self):
         """Drop (delete) the library.
@@ -189,9 +189,10 @@ class QueueRunner(object):
         self.maxN = maxN
         self.fspsqPath = fspsqPath
 
-    def __call__(self, commandPath):
+    def __call__(self, nodeName):
         """Executed in the pool mapping; looks for and computes models."""
         # print "hello"
+        self.nodeName = nodeName
         thisHost = socket.gethostname() # hostname of current process
         
         # Connect to the library in MongoDB
@@ -224,21 +225,9 @@ class QueueRunner(object):
                     modelNames.append(pset.name)
                 if len(psets) == 0: break # empty job queue
                 # Startup a computation: write command file and start fspsq
-                cmdTxt = "\n".join([p.command() for p in psets])+"\n"
-                if os.path.exists(commandPath): os.remove(commandPath)
-                f = open(commandPath, 'w')
-                f.write(cmdTxt)
-                f.close()
-                nModels = len(psets)
-                shellCmd = self._make_shell_command(self.fspsqPath,
-                        commandPath, nModels, varSet)
-                print "cmd::", shellCmd
-                subprocess.call(shellCmd, shell=True)
-                # Get output data from FSPS
-                self._gather_fsps_outputs(modelNames)
+                for pset in psets:
+                    self._compute_model(pset)
 
-        # Delete command file when done
-        os.remove(commandPath)
 
     def _make_common_var_sets(self):
         """Make a list of common variable setups.
@@ -278,59 +267,31 @@ class QueueRunner(object):
                                 "pset.redshift_colors":iredshift})
         return groups
 
-    def _make_shell_command(self, fspsqPath, commandFilePath, nModels, varSet):
-        """Crafts the command for running `fspsq`, returning a string."""
-        cmd = "%s %s %i %i %i %i %i %i" % (fspsqPath, commandFilePath,
-                nModels, varSet['pset.sfh'], varSet['pset.dust_type'],
-                varSet['pset.imf_type'], varSet['pset.compute_vega_mags'],
-                varSet['pset.redshift_colors'])
-        return cmd
+    def _compute_model(self, pset):
+        """Computes a model and inserts results into the Mongo collection."""
+        fsps.driver.setup(pset['compute_vega_mags'], pset['redshift_colors'])
+        nBands = fsps.driver.get_n_bands()
+        nLambda = fsps.driver.get_n_lambda()
+        nAges = fsps.driver.get_n_ages()
+        fsps.driver.setup_all_ssp(pset['imf_type'], pset['imf1'], pset['imf2'],
+                pset['imf3'], pset['vdmc'], pset['mdave'], pset['dell'],
+                pset['delt'], pset['sbss'], pset['fbhb'], pset['pagb'])
+        fsps.fsps.comp_sp(pset['dust_type'], pset['zmet'], pset['sfh'],
+                pset['tau'], pset['const'], pset['fburst'], pset['tburst'],
+                pset['dust_tesc'], pset['dust1'], pset['dust2'],
+                pset['dust_clumps'], pset['frac_no_dust'], pset['dust_index'],
+                pset['mwr'], pset['wgp1'], pset['wgp2'], pset['wgp3'], 
+                pset['duste_gamma'], pset['duste_umin'], pset['duste_qpah'],
+                pset['tage'])
+        allMags = fsps.driver.get_csp_mags(nBands, nAges)
+        allSpecs = fsps.driver.get_csp_specs(nLambda, nAges) # TODO
+        age, mass, lbol, sfr, dust_mass = fsps.driver.get_csp_stats(nAges)
+        dataArray = self._splice_mag_spec_arrays(age, mass, lbol, sfr,
+                dust_mass, allMags, allSpecs, nLambda)
+        self._insert_model(pset.name, dataArray)
 
-    def _gather_fsps_outputs(self, modelNames, getMags=True, getSpec=True):
-        """Adds the .mag and .spec outputs for each model to MongoDB.
-        
-        .. note:: Need to propagate the spec type through here...
-        """
-        fspsDir = os.environ['SPS_HOME'] # environment variable for FSPS
-        outputDir = os.path.join(fspsDir, "OUTPUTS")
-        # print modelNames
-        for modelName in modelNames:
-            magPath = os.path.join(outputDir, modelName+".out.mags")
-            specPath = os.path.join(outputDir, modelName+".out.spec")
-            print "Ingesting", modelName
-            #try:
-            magParser = MagParser(magPath)
-            magData = magParser.data
-            specParser = SpecParser(specPath)
-            specData = specParser.data
-            nLambda = specParser.nlambda('basel')
-            if getMags and getSpec:
-                allData = self._splice_mag_spec_arrays(magData, specData, nLambda)
-            #except:
-            #    # Some exception in parsing the text files; skip the output
-            #    self.collection.update({"_id": modelName},
-            #            {"$set": {"compute_complete": True,
-            #            "ingest_fail": True}})
-            #    print "\t", modelName, "ingest fail"
-            #    continue
-            self.collection.update({"_id": modelName}, {"$set": {"compute_complete": True}})
-            binData = Binary(pickle.dumps(allData,-1))
-            self.collection.update({"_id": modelName},
-                {"$set": {"np_data": {'_type': 'np.ndarray', 'data':binData}}})
-            # Remove data files
-            os.remove(magPath)
-            os.remove(specPath)
-
-            # load data with pickle.load(doc['np_data']['data])
-            
-            # Using SON Manipulator:
-            # print c.find_one({"_id": modelName})
-            # print "type:", type(npDataSmall)
-            # c.update({"_id": modelName}, {"$set": {"np_data": npDataSmall}})
-            # print c.find_one({"_id": modelName})['np_data']
-            # print "update complete!"
-
-    def _splice_mag_spec_arrays(self, magData, specData, nLambda):
+    def _splice_mag_spec_arrays(self, age, mass, lbol, sfr,
+                dust_mass, magData, specData, nLambda):
         """Add spectrum to teh magData structured array.
         
         .. note:: This is done by heavy-duty copying. It'd probably be
@@ -338,15 +299,36 @@ class QueueRunner(object):
            :func:`numpy.recfunctions.append_fields` can be applied here. But
            I can't get it to work.
         """
-        magDtype = [('age',np.float),('mass',np.float),('lbol',np.float),('sfr',np.float)]
+        magDtype = [('age',np.float),('mass',np.float),('lbol',np.float),
+                ('sfr',np.float), ('dust_mass',np.float)]
         magDtype += [(name,np.float) for (idx,name,comment) in FILTER_LIST]
         dt = magDtype + [('spec',np.float,nLambda)]
-        nRows = len(magData)
+        nRows = len(age)
         allData = np.empty(nRows, dtype=dt)
-        for t in magDtype:
-            allData[t[0]] = magData[t[0]]
+        allData['age'] = age
+        allData['mass'] = mass
+        allData['lbol'] = lbol
+        allData['sfr'] = sfr
+        allData['dust_mass'] = dust_mass
+        for (idx,name,comment) in FILTER_LIST:
+            allData[name] = magData[idx-1] # fortran indices start at 1
         allData['spec'] = specData['spec']
         return allData
+
+    def _insert_model(self, modelName, modelData):
+        """docstring for _insert_model"""
+        self.collection.update({"_id": modelName}, {"$set": {"compute_complete": True}})
+        binData = Binary(pickle.dumps(modelData,-1))
+        self.collection.update({"_id": modelName},
+                {"$set": {"np_data": {'_type': 'np.ndarray', 'data':binData}}})
+        # load data with pickle.load(doc['np_data']['data])
+            
+        # Using SON Manipulator:
+        # print c.find_one({"_id": modelName})
+        # print "type:", type(npDataSmall)
+        # c.update({"_id": modelName}, {"$set": {"np_data": npDataSmall}})
+        # print c.find_one({"_id": modelName})['np_data']
+        # print "update complete!"
 
 
 class NumpySONManipulator(SONManipulator):

@@ -34,8 +34,15 @@ class ParameterSet(object):
             if k in self.knownParameters:
                 self.p[k] = v
     
+    def __getitem__(self, key):
+        """Return the parameter value given the key."""
+        return self.p[key]
+    
     def command(self):
-        """Write the string for this parameter set."""
+        """Write the string for this parameter set.
+        
+        .. note:: Deprecated with the f2py wrapper.
+        """
         # These are pset variables, (aside from sfh)
         dt = [("zred","%.2f"),("zmet","%02i"),("tau","%.10f"),("const","%.4f"),
                 ("sf_start","%.2f"),("tage","%.4f"),("fburst","%.4f"),
