@@ -10,7 +10,6 @@ python module fsps ! in
             type(params) intent(hide) :: pset
             type(compspout) dimension((ntfull)),intent(hide) :: ocompsp
             integer :: zi
-            integer :: my_foo_var
             subroutine setup(use_vega_mags,apply_redshift) ! in :fsps:fsps.f90:fsps
                 integer intent(in) :: use_vega_mags
                 integer intent(in) :: apply_redshift
@@ -28,30 +27,6 @@ python module fsps ! in
                 real intent(in) :: fbhb
                 real intent(in) :: pagb
             end subroutine setup_all_ssp
-            subroutine comp_sp_file(model_name,dust,zmet,sfh,tau,const_bn,fburst,tburst,dust_tesc,dust1,dust2,dust_clumps,frac_no_dust,dust_index,mwr,wgp1,wgp2,wgp3,duste_gamma,duste_umin,duste_qpah,tage) ! in :fsps:fsps.f90:fsps
-                character*256 intent(in) :: model_name
-                integer intent(in) :: dust
-                integer intent(in) :: zmet
-                integer intent(in) :: sfh
-                real intent(in) :: tau
-                real intent(in) :: const_bn
-                real intent(in) :: fburst
-                real intent(in) :: tburst
-                real intent(in) :: dust_tesc
-                real intent(in) :: dust1
-                real intent(in) :: dust2
-                real intent(in) :: dust_clumps
-                real intent(in) :: frac_no_dust
-                real intent(in) :: dust_index
-                real intent(in) :: mwr
-                integer intent(in) :: wgp1
-                integer intent(in) :: wgp2
-                integer intent(in) :: wgp3
-                real intent(in) :: duste_gamma
-                real intent(in) :: duste_umin
-                real intent(in) :: duste_qpah
-                real intent(in) :: tage
-            end subroutine comp_sp_file
             subroutine comp_sp(dust,zmet,sfh,tau,const_bn,fburst,tburst,dust_tesc,dust1,dust2,dust_clumps,frac_no_dust,dust_index,mwr,wgp1,wgp2,wgp3,duste_gamma,duste_umin,duste_qpah,tage) ! in :fsps:fsps.f90:fsps
                 integer intent(in) :: dust
                 integer intent(in) :: zmet
@@ -81,6 +56,9 @@ python module fsps ! in
             subroutine get_n_ages(n_ages) ! in :fsps:fsps.f90:fsps
                 integer intent(out) :: n_ages
             end subroutine get_n_ages
+            subroutine get_n_ages_isochrone(n_ages) ! in :fsps:fsps.f90:fsps
+                integer intent(out) :: n_ages
+            end subroutine get_n_ages_isochrone
             subroutine get_n_masses(n_masses) ! in :fsps:fsps.f90:fsps
                 integer intent(out) :: n_masses
             end subroutine get_n_masses
@@ -89,32 +67,32 @@ python module fsps ! in
                 integer intent(in) :: tt
                 integer intent(out) :: nmass
             end subroutine get_n_masses_isochrone
-            subroutine get_mags_at_age(iage,n_bands,mag_array) ! in :fsps:fsps.f90:fsps
+            subroutine get_csp_mags_at_age(iage,n_bands,mag_array) ! in :fsps:fsps.f90:fsps
                 integer intent(in) :: iage
                 integer intent(in) :: n_bands
                 real dimension(n_bands),intent(out),depend(n_bands) :: mag_array
-            end subroutine get_mags_at_age
-            subroutine get_stats_at_age(iage,age,mass,lbol,sfr,dust_mass) ! in :fsps:fsps.f90:fsps
+            end subroutine get_csp_mags_at_age
+            subroutine get_csp_stats_at_age(iage,age,mass,lbol,sfr,dust_mass) ! in :fsps:fsps.f90:fsps
                 integer intent(in) :: iage
                 real intent(out) :: age
                 real intent(out) :: mass
                 real intent(out) :: lbol
                 real intent(out) :: sfr
                 real intent(out) :: dust_mass
-            end subroutine get_stats_at_age
-            subroutine get_mags(n_bands,n_ages,mag_array) ! in :fsps:fsps.f90:fsps
+            end subroutine get_csp_stats_at_age
+            subroutine get_csp_mags(n_bands,n_ages,mag_array) ! in :fsps:fsps.f90:fsps
                 integer intent(in) :: n_bands
                 integer intent(in) :: n_ages
                 real dimension(n_bands,n_ages),intent(out),depend(n_bands,n_ages) :: mag_array
-            end subroutine get_mags
-            subroutine get_stats(n_ages,age,mass,lbol,sfr,dust_mass) ! in :fsps:fsps.f90:fsps
+            end subroutine get_csp_mags
+            subroutine get_csp_stats(n_ages,age,mass,lbol,sfr,dust_mass) ! in :fsps:fsps.f90:fsps
                 integer intent(in) :: n_ages
                 real dimension(n_ages),intent(out),depend(n_ages) :: age
                 real dimension(n_ages),intent(out),depend(n_ages) :: mass
                 real dimension(n_ages),intent(out),depend(n_ages) :: lbol
                 real dimension(n_ages),intent(out),depend(n_ages) :: sfr
                 real dimension(n_ages),intent(out),depend(n_ages) :: dust_mass
-            end subroutine get_stats
+            end subroutine get_csp_stats
             subroutine get_isochrone(zz,tt,n_mass,n_mags,time_out,z_out,mass_init_out,logl_out,logt_out,logg_out,ffco_out,phase_out,wght_out,mags_out) ! in :fsps:fsps.f90:fsps
                 integer intent(in) :: zz
                 integer intent(in) :: tt
@@ -131,16 +109,6 @@ python module fsps ! in
                 real dimension(n_mass),intent(out),depend(n_mass) :: wght_out
                 real dimension(n_mass,n_mags),intent(out),depend(n_mass,n_mags) :: mags_out
             end subroutine get_isochrone
-            subroutine get_isochrone_simple(zz,tt,n_mass,n_mags) ! in :fsps:fsps.f90:fsps
-                integer intent(in) :: zz
-                integer intent(in) :: tt
-                integer intent(in) :: n_mass
-                integer intent(in) :: n_mags
-            end subroutine get_isochrone_simple
-            subroutine my_write_isochrone(file,zz) ! in :fsps:fsps.f90:fsps
-                character*100 intent(in) :: file
-                integer intent(in) :: zz
-            end subroutine my_write_isochrone
         end module fsps
     end interface 
 end python module fsps
