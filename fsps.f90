@@ -100,6 +100,12 @@ contains
         n_bands = nbands
     end subroutine
 
+    ! Returns number of wavelength bins in spectra
+    subroutine get_n_lambda(n_lambda)
+        integer, intent(out) :: n_lambda
+        n_lambda = nspec
+    end subroutine
+
     ! Returns number of ages that are computed in a SFH, if tage is set to 0.
     ! Use this with comp sp
     subroutine get_n_ages(n_ages)
@@ -126,6 +132,13 @@ contains
         integer, intent(in) :: zz, tt
         integer, intent(out) :: nmass
         nmass = nmass_isoc(zz,tt)
+    end subroutine
+
+    ! Returns array with spectral grid
+    subroutine get_lambda_grid(n_lambda, lambda_array)
+        integer, intent(in) :: n_lambda
+        real, dimension(n_lambda), intent(out) :: lambda_array
+        lambda_array = spec_lambda
     end subroutine
 
     ! Get mags for a single age given by index iage
@@ -161,6 +174,15 @@ contains
         real, dimension(n_ages,n_bands), intent(out) :: mag_array
         do zi=1,n_ages
             mag_array(zi,:) = ocompsp(zi)%mags
+        end do
+    end subroutine
+
+    ! Get spectra for all ages
+    subroutine get_csp_specs(n_lambda, n_ages, spec_array)
+        integer, intent(in) :: n_lambda, n_ages
+        real, dimension(n_ages,n_lambda), intent(out) :: spec_array
+        do zi=1,n_ages
+            spec_array(zi,:) = ocompsp(zi)%spec
         end do
     end subroutine
 
