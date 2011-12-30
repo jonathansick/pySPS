@@ -308,9 +308,11 @@ class QueueRunner(object):
         allData['lbol'] = lbol
         allData['sfr'] = sfr
         allData['dust_mass'] = dust_mass
+        print "magData shape:", magData.shape
         for (idx,name,comment) in FILTER_LIST:
-            allData[name] = magData[idx-1] # fortran indices start at 1
-        allData['spec'] = specData['spec']
+            print idx-1, name
+            allData[name] = magData[:,idx-1] # fortran indices start at 1
+        allData['spec'] = specData
         return allData
 
     def _insert_model(self, modelName, modelData):

@@ -1,7 +1,7 @@
 """Test fspsq with a tiny grid of models--a basic burn in test case."""
 from pymongo import ASCENDING
-from fsps import FSPSLibrary
-from fsps import ParameterSet
+from splib import FSPSLibrary
+from sp_params import ParameterSet
 
 import matplotlib.pyplot as plt
 
@@ -10,8 +10,7 @@ def main():
     tinyLibrary.reset()
     tinyLibrary.generate_grid()
     tinyLibrary.compute_models(nThreads=1)
-    #tinyLibrary.create_table("tiny_table.h5")
-
+    tinyLibrary.create_table("tiny_table.h5")
     plot_sfh_library(tinyLibrary)
 
     #tinyTage = TinyTageGrid("tinytage", dbname="fsps")
