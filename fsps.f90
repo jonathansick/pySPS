@@ -1,7 +1,7 @@
 ! fsps.f90 -- a module intended to be wrapped by f2py as a python module
 ! for making stellar pops
 
-module fsps
+module driver
     use sps_vars; use nrtype; use sps_utils
     implicit none
 

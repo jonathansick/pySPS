@@ -34,14 +34,14 @@ def main():
     duste_qpah = 3.5
     tage = 0.
             
-    fsps.fsps.setup(use_vega_mags, apply_redshift)
-    nBands = fsps.fsps.get_n_bands()
-    nAges = fsps.fsps.get_n_ages()
-    nMasses = fsps.fsps.get_n_masses()
+    fsps.driver.setup(use_vega_mags, apply_redshift)
+    nBands = fsps.driver.get_n_bands()
+    nAges = fsps.driver.get_n_ages()
+    nMasses = fsps.driver.get_n_masses()
     print "There are", nBands, "bands"
     print "There are", nAges, "ages"
     print "There are", nMasses, "masses"
-    fsps.fsps.setup_all_ssp(imf, imf1, imf2, imf3, vdmc, mdave, dell, delt,
+    fsps.driver.setup_all_ssp(imf, imf1, imf2, imf3, vdmc, mdave, dell, delt,
             sbss, fbhb, pagb)
     #fsps.fsps.comp_sp(dust_type, zmet, sfh, tau, const, 
     #        fburst, tburst, dust_tesc, dust1, dust2, dust_clumps, 
@@ -59,10 +59,10 @@ def main():
 
     zz = 8
     tt = 70 # max 94
-    nMass = fsps.fsps.get_n_masses_isochrone(zz, tt) # n masses for this isoc
+    nMass = fsps.driver.get_n_masses_isochrone(zz, tt) # n masses for this isoc
     print "nMasses for isochrone", nMass
     time, Z, massInit, logL, logT, logg, ffco, phase, wght, isocMags = \
-            fsps.fsps.get_isochrone(zz, tt, nMass, nBands)
+            fsps.driver.get_isochrone(zz, tt, nMass, nBands)
     print time, Z
     print isocMags.shape
     print ffco
