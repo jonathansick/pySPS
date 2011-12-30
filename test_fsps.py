@@ -41,8 +41,8 @@ def main():
     print "There are", nBands, "bands"
     print "There are", nAges, "ages"
     print "There are", nMasses, "masses"
-    #fsps.fsps.setup_all_ssp(imf, imf1, imf2, imf3, vdmc, mdave, dell, delt,
-    #        sbss, fbhb, pagb)
+    fsps.fsps.setup_all_ssp(imf, imf1, imf2, imf3, vdmc, mdave, dell, delt,
+            sbss, fbhb, pagb)
     #fsps.fsps.comp_sp(dust_type, zmet, sfh, tau, const, 
     #        fburst, tburst, dust_tesc, dust1, dust2, dust_clumps, 
     #        frac_no_dust, dust_index, mwr, wgp1, wgp2, wgp3, 
@@ -58,13 +58,15 @@ def main():
 
 
     zz = 8
-    tt = 10
+    tt = 70 # max 94
     nMass = fsps.fsps.get_n_masses_isochrone(zz, tt) # n masses for this isoc
     print "nMasses for isochrone", nMass
     time, Z, massInit, logL, logT, logg, ffco, phase, wght, isocMags = \
             fsps.fsps.get_isochrone(zz, tt, nMass, nBands)
     print time, Z
     print isocMags.shape
+    print ffco
+    print phase
 
     print "All tests complete!"
 

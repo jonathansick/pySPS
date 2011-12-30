@@ -144,9 +144,17 @@ contains
     end subroutine
 
     ! Returns number of ages that are computed in a SFH, if tage is set to 0.
+    ! Use this with comp sp
     subroutine get_n_ages(n_ages)
         integer, intent(out) :: n_ages
         n_ages = ntfull
+    end subroutine
+
+    ! Returns number of ages in the basic isochrone set
+    ! use this with isochrones
+    subroutine get_n_ages_isochrone(n_ages)
+        integer, intent(out) :: n_ages
+        n_ages = nt
     end subroutine
 
     ! Returns max number of masses included in the isochrones
