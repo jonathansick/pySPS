@@ -97,6 +97,11 @@ python module fsps ! in
                 integer intent(in) :: n_ages
                 real dimension(n_ages,n_lambda),intent(out),depend(n_ages,n_lambda) :: spec_array
             end subroutine get_csp_specs
+            subroutine get_csp_specs_at_age(iage,n_lambda,spec_array) ! in :fsps:fsps.f90:driver
+                integer intent(in) :: iage
+                integer, optional,intent(in),check(len(spec_array)>=n_lambda),depend(spec_array) :: n_lambda=len(spec_array)
+                real dimension(n_lambda) :: spec_array
+            end subroutine get_csp_specs_at_age
             subroutine get_csp_stats(n_ages,age,mass,lbol,sfr,dust_mass) ! in :fsps:fsps.f90:driver
                 integer intent(in) :: n_ages
                 real dimension(n_ages),intent(out),depend(n_ages) :: age
