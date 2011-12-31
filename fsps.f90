@@ -52,6 +52,33 @@ contains
         write (*,*) 'setup_all_ssp() complete'
     end subroutine
 
+    subroutine setup_one_ssp(zz, imf, imf1, imf2, imf3, vdmc, &
+            mdave, dell, delt, sbss, fbhb, pagb)
+        integer, intent(in) :: zz, imf
+        real, intent(in) :: imf1, imf2, imf3, vdmc, mdave
+        real, intent(in) :: dell, delt, sbss, fbhb, pagb
+        ! Dependent on imf, sbss, fbhb, delt, dell, pagb, redgb
+        imf_type = imf
+        pset%imf1 = imf1
+        pset%imf2 = imf2
+        pset%imf3 = imf3
+        pset%vdmc = vdmc
+        pset%mdave = mdave
+        pset%dell = dell
+        pset%delt = delt
+        pset%sbss = sbss
+        pset%fbhb = fbhb
+        pset%pagb = pagb
+        
+        ! Initialize just one metallicity, index zi
+        spec_ssp_zz = 0.0
+        ! need to set blue HB and delta AGB before this
+        pset%zmet = zz
+        call ssp_gen(pset,mass_ssp_zz(zz,:), &
+            lbol_ssp_zz(zz,:), spec_ssp_zz(zz,:,:))
+        write (*,*) 'setup_one_ssp() complete'
+    end subroutine
+
     ! Computes the SP, keeping the results to memory
     ! Call get_sp_mags() or get_sp_spec() to get outputs
     subroutine comp_sp(dust, zmet, sfh, tau, const, &

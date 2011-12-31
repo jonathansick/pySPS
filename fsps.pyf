@@ -27,6 +27,20 @@ python module fsps ! in
                 real intent(in) :: fbhb
                 real intent(in) :: pagb
             end subroutine setup_all_ssp
+            subroutine setup_one_ssp(zz,imf,imf1,imf2,imf3,vdmc,mdave,dell,delt,sbss,fbhb,pagb) ! in :fsps:fsps.f90:driver
+                integer intent(in) :: zz
+                integer intent(in) :: imf
+                real intent(in) :: imf1
+                real intent(in) :: imf2
+                real intent(in) :: imf3
+                real intent(in) :: vdmc
+                real intent(in) :: mdave
+                real intent(in) :: dell
+                real intent(in) :: delt
+                real intent(in) :: sbss
+                real intent(in) :: fbhb
+                real intent(in) :: pagb
+            end subroutine setup_one_ssp
             subroutine comp_sp(dust,zmet,sfh,tau,const_bn,fburst,tburst,dust_tesc,dust1,dust2,dust_clumps,frac_no_dust,dust_index,mwr,wgp1,wgp2,wgp3,duste_gamma,duste_umin,duste_qpah,tage) ! in :fsps:fsps.f90:driver
                 integer intent(in) :: dust
                 integer intent(in) :: zmet

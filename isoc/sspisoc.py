@@ -25,8 +25,6 @@ class SSPIsocFactory(object):
     def __call__(self, p):
         """Generate an isochrone.
 
-        TODO: allow user to specify
-        
         Parameters
         ----------
         p : dict
@@ -37,11 +35,11 @@ class SSPIsocFactory(object):
         """
         if self.fspsInit == False:
             fsps.driver.setup(self.compute_vega_mags, 0)
-        # TODO eventually want to either init SSPs of a single metallicity only
-        # or cache results so SSPs aren't recomputed each time
-        fsps.driver.setup_all_ssp(p['imf_type'], p['imf1'], p['imf2'], p['imf3'],
-                p['vdmc'], p['mdave'], p['dell'], p['delt'], p['sbss'],
-                p['fbhb'], p['pagb'])
+        # TODO eventually want to cache whether we really need to regenerate
+        # an SSP or not based on previous computations
+        fsps.driver.setup_one_ssp(p['zmet'], p['imf_type'], p['imf1'],
+                p['imf2'], p['imf3'], p['vdmc'], p['mdave'], p['dell'],
+                p['delt'], p['sbss'], p['fbhb'], p['pagb'])
         nAges = fsps.driver.get_n_ages_isochrone()
         nBands = fsps.driver.get_n_bands()
         nMasses = fsps.driver.get_n_masses_isochrone(p['zmet'], p['iage'])
