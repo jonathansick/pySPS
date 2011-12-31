@@ -236,6 +236,12 @@ class QueueRunner(object):
                     psets.append(pset)
                     modelNames.append(pset.name)
                 if len(psets) == 0: break # empty job queue
+                # Initialize SSPs for this common SSP set
+                pset = psets[0]
+                fsps.driver.setup_all_ssp(pset['imf_type'], pset['imf1'],
+                        pset['imf2'], pset['imf3'], pset['vdmc'],
+                        pset['mdave'], pset['dell'], pset['delt'],
+                        pset['sbss'], pset['fbhb'], pset['pagb'])
                 # Startup a computation: write command file and start fspsq
                 for pset in psets:
                     self._compute_model(pset)
@@ -261,22 +267,36 @@ class QueueRunner(object):
         List of dictionaries. Each dictionary has keys representing common
         variables: sfh, dust_type, imf_type, compute_vega_mags, redshift_colors
         """
-        params = ['sfh', 'dust_type', 'imf_type',
-            'compute_vega_mags', 'redshift_colors']
+        params = ['imf_type', 'imf1', 'imf2', 'imf3', 'vdmc', 'mdave',
+                'dell', 'delt', 'sbss', 'fbhb', 'pagb',
+                'compute_vega_mags', 'redshift_colors']
         possibleValues = {}
         for param in params:
             possibleValues[param] = self.collection.distinct("pset."+param)
         groups = []
-        for isfh in possibleValues['sfh']:
-            for idust_type in possibleValues['dust_type']:
-                for iimf_type in possibleValues['imf_type']:
-                    for ivega in possibleValues['compute_vega_mags']:
-                        for iredshift in possibleValues['redshift_colors']:
-                            groups.append({"pset.sfh":isfh,
-                                "pset.dust_type":idust_type,
-                                "pset.imf_type":iimf_type,
-                                "pset.compute_vega_mags":ivega,
-                                "pset.redshift_colors":iredshift})
+        for iimf_type in possibleValues['imf_type']:
+            for iimf1 in possibleValues['imf1']:
+                for iimf2 in possibleValues['imf2']:
+                    for iimf3 in possibleValues['imf3']:
+                        for ivdmc in possibleValues['vdmc']:
+                            for imdave in possibleValues['mdave']:
+                                for idell in possibleValues['dell']:
+                                    for idelt in possibleValues['delt']:
+                                        for isbss in possibleValues['sbss']:
+                                            for ifbhb in possibleValues['fbhb']:
+                                                for ipagb in possibleValues['pagb']:
+                                                    groups.append(
+                                                        {"pset.imf_type":iimf_type,
+                                                        "imf1":iimf1,
+                                                        "imf2":iimf2,
+                                                        "imf3":iimf3,
+                                                        "vdmc":ivdmc,
+                                                        "mdave":imdave,
+                                                        "dell":idell,
+                                                        "delt":idelt,
+                                                        "sbss":isbss,
+                                                        "fbhb":ifbhb,
+                                                        "pagb":ipagb})
         return groups
 
     def _compute_model(self, pset):
@@ -285,9 +305,6 @@ class QueueRunner(object):
         nBands = fsps.driver.get_n_bands()
         nLambda = fsps.driver.get_n_lambda()
         nAges = fsps.driver.get_n_ages()
-        fsps.driver.setup_all_ssp(pset['imf_type'], pset['imf1'], pset['imf2'],
-                pset['imf3'], pset['vdmc'], pset['mdave'], pset['dell'],
-                pset['delt'], pset['sbss'], pset['fbhb'], pset['pagb'])
         fsps.driver.comp_sp(pset['dust_type'], pset['zmet'], pset['sfh'],
                 pset['tau'], pset['const'], pset['fburst'], pset['tburst'],
                 pset['dust_tesc'], pset['dust1'], pset['dust2'],
