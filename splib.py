@@ -281,11 +281,27 @@ class QueueRunner(object):
                 pset['mwr'], pset['wgp1'], pset['wgp2'], pset['wgp3'], 
                 pset['duste_gamma'], pset['duste_umin'], pset['duste_qpah'],
                 pset['tage'])
-        allMags = fsps.driver.get_csp_mags(nBands, nAges)
-        allSpecs = fsps.driver.get_csp_specs(nLambda, nAges) # TODO
-        age, mass, lbol, sfr, dust_mass = fsps.driver.get_csp_stats(nAges)
+        if pset['tage'] == 0.:
+            # SFH over all ages is returned
+            mags = fsps.driver.get_csp_mags(nBands, nAges)
+            specs = fsps.driver.get_csp_specs(nLambda, nAges)
+            age, mass, lbol, sfr, dust_mass = fsps.driver.get_csp_stats(nAges)
+        else:
+            # get only a single age, stored in first age bin
+            # arrays must be re-formated to appear like one-age versions of
+            # the outputs from get_csp_mags, etc.
+            mags = fsps.driver.get_csp_mags_at_age(1, nBands)
+            specs = fsps.driver.get_csp_specs_at_age(1, nLambda)
+            age, mass, lbol, sfr, dust_mass = fsps.driver.get_csp_stats_at_age(1)
+            age = np.atleast_1d(age)
+            mass = np.atleast_1d(mass)
+            lbol = np.atleast_1d(lbol)
+            sfr = np.atleast_1d(sfr)
+            dust_mass = np.atleast_1d(dust_mass)
+            mags = np.atleast_2d(mags)
+            specs = np.atleast_2d(specs)
         dataArray = self._splice_mag_spec_arrays(age, mass, lbol, sfr,
-                dust_mass, allMags, allSpecs, nLambda)
+                dust_mass, mags, specs, nLambda)
         self._insert_model(pset.name, dataArray)
 
     def _splice_mag_spec_arrays(self, age, mass, lbol, sfr,

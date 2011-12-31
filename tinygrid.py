@@ -6,6 +6,10 @@ from sp_params import ParameterSet
 import matplotlib.pyplot as plt
 
 def main():
+    #run_tiny_ssp_grid()
+    run_tiny_tage_grid()
+
+def run_tiny_ssp_grid():
     tinyLibrary = TinySSPGrid("tinyssp", dbname="fsps")
     tinyLibrary.reset()
     tinyLibrary.generate_grid()
@@ -13,12 +17,13 @@ def main():
     tinyLibrary.create_table("tiny_table.h5")
     plot_sfh_library(tinyLibrary)
 
-    #tinyTage = TinyTageGrid("tinytage", dbname="fsps")
-    #tinyTage.reset()
-    #tinyTage.generate_grid()
-    #tinyTage.compute_models(nThreads=1)
-    #tinyTage.create_table("tiny_tage.h5")
-    #tinyTage.print_npdata()
+def run_tiny_tage_grid():
+    tinyTage = TinyTageGrid("tinytage", dbname="fsps")
+    tinyTage.reset()
+    tinyTage.generate_grid()
+    tinyTage.compute_models(nThreads=1)
+    tinyTage.create_table("tiny_tage.h5")
+    tinyTage.print_npdata()
 
 class TinySSPGrid(FSPSLibrary):
     """A small grid SSPs for three metallicities."""
@@ -37,7 +42,6 @@ class TinyTageGrid(FSPSLibrary):
     
     def generate_grid(self):
         """Create the model grid."""
-        taus = [0.1,1.,10.]
         zmets = [3, 10, 20]
         for i, zmet in enumerate(zmets):
             pset = ParameterSet(None, sfh=1, tage=13.7,
