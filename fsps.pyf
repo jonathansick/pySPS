@@ -53,6 +53,9 @@ python module fsps ! in
             subroutine get_n_bands(n_bands) ! in :fsps:fsps.f90:driver
                 integer intent(out) :: n_bands
             end subroutine get_n_bands
+            subroutine get_n_lambda(n_lambda) ! in :fsps:fsps.f90:driver
+                integer intent(out) :: n_lambda
+            end subroutine get_n_lambda
             subroutine get_n_ages(n_ages) ! in :fsps:fsps.f90:driver
                 integer intent(out) :: n_ages
             end subroutine get_n_ages
@@ -67,6 +70,10 @@ python module fsps ! in
                 integer intent(in) :: tt
                 integer intent(out) :: nmass
             end subroutine get_n_masses_isochrone
+            subroutine get_lambda_grid(n_lambda,lambda_array) ! in :fsps:fsps.f90:driver
+                integer intent(in) :: n_lambda
+                real dimension(n_lambda),intent(out),depend(n_lambda) :: lambda_array
+            end subroutine get_lambda_grid
             subroutine get_csp_mags_at_age(iage,n_bands,mag_array) ! in :fsps:fsps.f90:driver
                 integer intent(in) :: iage
                 integer intent(in) :: n_bands
@@ -85,6 +92,16 @@ python module fsps ! in
                 integer intent(in) :: n_ages
                 real dimension(n_ages,n_bands),intent(out),depend(n_ages,n_bands) :: mag_array
             end subroutine get_csp_mags
+            subroutine get_csp_specs(n_lambda,n_ages,spec_array) ! in :fsps:fsps.f90:driver
+                integer intent(in) :: n_lambda
+                integer intent(in) :: n_ages
+                real dimension(n_ages,n_lambda),intent(out),depend(n_ages,n_lambda) :: spec_array
+            end subroutine get_csp_specs
+            subroutine get_csp_specs_at_age(iage,n_lambda,spec_array) ! in :fsps:fsps.f90:driver
+                integer intent(in) :: iage
+                integer intent(in) :: n_lambda
+                real dimension(n_lambda),intent(out),depend(n_lambda) :: spec_array
+            end subroutine get_csp_specs_at_age
             subroutine get_csp_stats(n_ages,age,mass,lbol,sfr,dust_mass) ! in :fsps:fsps.f90:driver
                 integer intent(in) :: n_ages
                 real dimension(n_ages),intent(out),depend(n_ages) :: age

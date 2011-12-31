@@ -13,9 +13,17 @@ import numpy as np
 import tables # HDF5
 import matplotlib.mlab as mlab
 
-import bson
 from bson.binary import Binary
 from pymongo.son_manipulator import SONManipulator
+
+from sp_params import ParameterSet
+from sp_params import get_metallicity_LUT
+from sp_params import FILTER_LIST
+
+from parsers import MagParser
+from parsers import SpecParser
+
+import fsps # f2py wrapper to FSPS
 
 class FSPSLibrary(object):
     """For building/accessing a library of FSPS stellar population models.
@@ -42,8 +50,11 @@ class FSPSLibrary(object):
             "compute_started": False, "compute_complete": False}
         self.collection.insert(doc)
     
-    def compute_models(self, nThreads=1, maxN=10):
-        """Fire up FSPS to generate SP models.
+    def compute_models(self, nThreads=1, maxN=10, compute_vega_mags=0,
+            redshift_colors=0, imf_type=0, imf1=1.3, imf2=2.3, imf3=2.3,
+            vdmc=0.08, mdave=0.5, dell=0., delt=0., sbss=0., fbhb=0., pagb=1.):
+        """Fire up FSPS to generate SP models, assuming a common ssp set with
+        common IMF and isochrone modifications.
         
         Parameters
         ----------
@@ -53,17 +64,24 @@ class FSPSLibrary(object):
         maxN : int, optional
             Maximum number of jobs that can be given to a single
             `fspsq` process.
+        compute_vega_mags : int, optional
+            Set to 1 to produce magnitudes in vega system, 0 for AB (default)
+            Note: this overrides any setting in the parameter sets
+        redshift_colors : int, optional
+            Set to 0 to leave colours in rest frame
         """
-        fspsqPath = os.path.join(os.getcwd(), "fspsq") # echo for debug
-        commandPaths = ["processor-%i" % i for i in xrange(1, nThreads+1)]
-        queue_runner = QueueRunner(self.libname, self.dbname, self.host,
-                self.port, maxN, fspsqPath)
-        # print args
+        queue_runner = QueueRunnerIsoSSP(self.libname, self.dbname, self.host,
+                self.port, maxN, compute_vega_mags=compute_vega_mags,
+                redshift_colors=redshift_colors,
+                imf_type=imf_type, imf1=imf1, imf2=imf2, imf3=imf3,
+                vdmc=vdmc, mdave=mdave, dell=dell, delt=delt, sbss=sbss,
+                fbhb=fbhb, pagb=pagb)
+        nodeNames = [str(i) for i in xrange(1,nThreads+1)]
         if nThreads > 1:
             pool = multiprocessing.Pool(processes=nThreads)
-            pool.map(queue_runner, commandPaths)
+            pool.map(queue_runner, nodeNames)
         else:
-            map(queue_runner, commandPaths)
+            map(queue_runner, nodeNames)
     
     def reset(self):
         """Drop (delete) the library.
@@ -168,24 +186,41 @@ class FSPSLibrary(object):
             ('yi',np.int),('ml',np.float)])
         return ccDtype
 
-class QueueRunner(object):
-    """Executes a queue of FSPS models.
+class QueueRunnerIsoSSP(object):
+    """Executes a queue of FSPS models. Assumes SSPs share a common IMF
+    and isochrone modifications.
     
     This is typically called via :meth:`FSPSLibrary.compute_models()`.
     """
-    def __init__(self, libname, dbname, dbhost, dbport, maxN, fspsqPath,
-            tage=None):
+    def __init__(self, libname, dbname, dbhost, dbport, maxN, jobQuery={},
+            compute_vega_mags=0, redshift_colors=0,
+            imf_type=0, imf1=1.3, imf2=2.3, imf3=2.3, vdmc=0.08, mdave=0.5,
+            dell=0., delt=0., sbss=0., fbhb=0., pagb=1.):
         #super(QueueRunner, self).__init__()
         self.libname = libname
         self.dbname = dbname
         self.dbhost = dbhost
         self.dbport = dbport
         self.maxN = maxN
-        self.fspsqPath = fspsqPath
+        self.jobQuery = jobQuery
+        self.compute_vega_mags = compute_vega_mags
+        self.redshift_colors = redshift_colors
+        self.imf_type = imf_type
+        self.imf1 = imf1
+        self.imf2 = imf2
+        self.imf3 = imf3
+        self.vdmc = vdmc
+        self.mdave = mdave
+        self.dell = dell
+        self.delt = delt
+        self.sbss = sbss
+        self.fbhb = fbhb
+        self.pagb = pagb
 
-    def __call__(self, commandPath):
+    def __call__(self, nodeName):
         """Executed in the pool mapping; looks for and computes models."""
         # print "hello"
+        self.nodeName = nodeName
         thisHost = socket.gethostname() # hostname of current process
         
         # Connect to the library in MongoDB
@@ -194,137 +229,76 @@ class QueueRunner(object):
         db.add_son_manipulator(NumpySONManipulator())
         self.collection = db[self.libname]
         
-        commonVarSets = self._make_common_var_sets()
-        # print "commonVarSets:", commonVarSets
-        for varSet in commonVarSets:
-            while True:
-                psets = []
-                modelNames = []
-                now = datetime.datetime.utcnow()
-                now = now.replace(tzinfo=pytz.utc)
-                while len(psets) <= self.maxN:
-                    q = {"compute_complete": False, "compute_started": False}
-                    q.update(varSet)
-                    # print "q", q
-                    doc = self.collection.find_and_modify(query=q,
-                        update={"$set": {"compute_started": True,
-                                        "queue_date": now,
-                                        "compute_host": thisHost}},)
-                    # print "doc", doc
-                    if doc is None: break # no available models
-                    modelName = str(doc['_id'])
-                    pset = ParameterSet(modelName, **doc['pset'])
-                    psets.append(pset)
-                    modelNames.append(pset.name)
-                if len(psets) == 0: break # empty job queue
-                # Startup a computation: write command file and start fspsq
-                cmdTxt = "\n".join([p.command() for p in psets])+"\n"
-                if os.path.exists(commandPath): os.remove(commandPath)
-                f = open(commandPath, 'w')
-                f.write(cmdTxt)
-                f.close()
-                nModels = len(psets)
-                shellCmd = self._make_shell_command(self.fspsqPath,
-                        commandPath, nModels, varSet)
-                print "cmd::", shellCmd
-                subprocess.call(shellCmd, shell=True)
-                # Get output data from FSPS
-                self._gather_fsps_outputs(modelNames)
+        # Initialize FSPS
+        fsps.driver.setup(self.compute_vega_mags, self.redshift_colors)
+        # Initialize SSPs for this common SSP set
+        fsps.driver.setup_all_ssp(self.imf_type, self.imf1,
+                self.imf2, self.imf3, self.vdmc,
+                self.mdave, self.dell, self.delt,
+                self.sbss, self.fbhb, self.pagb)
 
-        # Delete command file when done
-        os.remove(commandPath)
+        while True:
+            psets = []
+            modelNames = []
+            now = datetime.datetime.utcnow()
+            now = now.replace(tzinfo=pytz.utc)
+            while len(psets) <= self.maxN:
+                q = {"compute_complete": False, "compute_started": False}
+                q.update(self.jobQuery)
+                # print "q", q
+                doc = self.collection.find_and_modify(query=q,
+                update={"$set": {"compute_started": True,
+                                    "queue_date": now,
+                                    "compute_host": thisHost}},)
+                # print "doc", doc
+                if doc is None: break # no available models
+                modelName = str(doc['_id'])
+                pset = ParameterSet(modelName, **doc['pset'])
+                psets.append(pset)
+                modelNames.append(pset.name)
+            if len(psets) == 0: break # empty job queue
+            # Startup a computation: write command file and start fspsq
+            for pset in psets:
+                self._compute_model(pset)
 
-    def _make_common_var_sets(self):
-        """Make a list of common variable setups.
 
-        The idea is that some of the fortran COMMON BLOCK parameters cannot
-        be changed after `sps_setup` is called. Thus each run of fspsq is
-        with models that share common block paramters.
-        
-        .. note:: This merely lists all *possible* combinations of common variable
-        configurations. There is not guarantee that there are models needing
-        computation for each configuration set.
-        
-        Parameters
-        ----------
-        c : pymongo.Collection instance
-        
-        Returns
-        -------
-        List of dictionaries. Each dictionary has keys representing common
-        variables: sfh, dust_type, imf_type, compute_vega_mags, redshift_colors
-        """
-        params = ['sfh', 'dust_type', 'imf_type',
-            'compute_vega_mags', 'redshift_colors']
-        possibleValues = {}
-        for param in params:
-            possibleValues[param] = self.collection.distinct("pset."+param)
-        groups = []
-        for isfh in possibleValues['sfh']:
-            for idust_type in possibleValues['dust_type']:
-                for iimf_type in possibleValues['imf_type']:
-                    for ivega in possibleValues['compute_vega_mags']:
-                        for iredshift in possibleValues['redshift_colors']:
-                            groups.append({"pset.sfh":isfh,
-                                "pset.dust_type":idust_type,
-                                "pset.imf_type":iimf_type,
-                                "pset.compute_vega_mags":ivega,
-                                "pset.redshift_colors":iredshift})
-        return groups
+    def _compute_model(self, pset):
+        """Computes a model and inserts results into the Mongo collection."""
+        nBands = fsps.driver.get_n_bands()
+        nLambda = fsps.driver.get_n_lambda()
+        nAges = fsps.driver.get_n_ages()
+        fsps.driver.comp_sp(pset['dust_type'], pset['zmet'], pset['sfh'],
+                pset['tau'], pset['const'], pset['fburst'], pset['tburst'],
+                pset['dust_tesc'], pset['dust1'], pset['dust2'],
+                pset['dust_clumps'], pset['frac_nodust'], pset['dust_index'],
+                pset['mwr'], pset['wgp1'], pset['wgp2'], pset['wgp3'], 
+                pset['duste_gamma'], pset['duste_umin'], pset['duste_qpah'],
+                pset['tage'])
+        if pset['tage'] == 0.:
+            # SFH over all ages is returned
+            mags = fsps.driver.get_csp_mags(nBands, nAges)
+            specs = fsps.driver.get_csp_specs(nLambda, nAges)
+            age, mass, lbol, sfr, dust_mass = fsps.driver.get_csp_stats(nAges)
+        else:
+            # get only a single age, stored in first age bin
+            # arrays must be re-formated to appear like one-age versions of
+            # the outputs from get_csp_mags, etc.
+            mags = fsps.driver.get_csp_mags_at_age(1, nBands)
+            specs = fsps.driver.get_csp_specs_at_age(1, nLambda)
+            age, mass, lbol, sfr, dust_mass = fsps.driver.get_csp_stats_at_age(1)
+            age = np.atleast_1d(age)
+            mass = np.atleast_1d(mass)
+            lbol = np.atleast_1d(lbol)
+            sfr = np.atleast_1d(sfr)
+            dust_mass = np.atleast_1d(dust_mass)
+            mags = np.atleast_2d(mags)
+            specs = np.atleast_2d(specs)
+        dataArray = self._splice_mag_spec_arrays(age, mass, lbol, sfr,
+                dust_mass, mags, specs, nLambda)
+        self._insert_model(pset.name, dataArray)
 
-    def _make_shell_command(self, fspsqPath, commandFilePath, nModels, varSet):
-        """Crafts the command for running `fspsq`, returning a string."""
-        cmd = "%s %s %i %i %i %i %i %i" % (fspsqPath, commandFilePath,
-                nModels, varSet['pset.sfh'], varSet['pset.dust_type'],
-                varSet['pset.imf_type'], varSet['pset.compute_vega_mags'],
-                varSet['pset.redshift_colors'])
-        return cmd
-
-    def _gather_fsps_outputs(self, modelNames, getMags=True, getSpec=True):
-        """Adds the .mag and .spec outputs for each model to MongoDB.
-        
-        .. note:: Need to propagate the spec type through here...
-        """
-        fspsDir = os.environ['SPS_HOME'] # environment variable for FSPS
-        outputDir = os.path.join(fspsDir, "OUTPUTS")
-        # print modelNames
-        for modelName in modelNames:
-            magPath = os.path.join(outputDir, modelName+".out.mags")
-            specPath = os.path.join(outputDir, modelName+".out.spec")
-            print "Ingesting", modelName
-            #try:
-            magParser = MagParser(magPath)
-            magData = magParser.data
-            specParser = SpecParser(specPath)
-            specData = specParser.data
-            nLambda = specParser.nlambda('basel')
-            if getMags and getSpec:
-                allData = self._splice_mag_spec_arrays(magData, specData, nLambda)
-            #except:
-            #    # Some exception in parsing the text files; skip the output
-            #    self.collection.update({"_id": modelName},
-            #            {"$set": {"compute_complete": True,
-            #            "ingest_fail": True}})
-            #    print "\t", modelName, "ingest fail"
-            #    continue
-            self.collection.update({"_id": modelName}, {"$set": {"compute_complete": True}})
-            binData = Binary(pickle.dumps(allData,-1))
-            self.collection.update({"_id": modelName},
-                {"$set": {"np_data": {'_type': 'np.ndarray', 'data':binData}}})
-            # Remove data files
-            os.remove(magPath)
-            os.remove(specPath)
-
-            # load data with pickle.load(doc['np_data']['data])
-            
-            # Using SON Manipulator:
-            # print c.find_one({"_id": modelName})
-            # print "type:", type(npDataSmall)
-            # c.update({"_id": modelName}, {"$set": {"np_data": npDataSmall}})
-            # print c.find_one({"_id": modelName})['np_data']
-            # print "update complete!"
-
-    def _splice_mag_spec_arrays(self, magData, specData, nLambda):
+    def _splice_mag_spec_arrays(self, age, mass, lbol, sfr,
+                dust_mass, magData, specData, nLambda):
         """Add spectrum to teh magData structured array.
         
         .. note:: This is done by heavy-duty copying. It'd probably be
@@ -332,249 +306,39 @@ class QueueRunner(object):
            :func:`numpy.recfunctions.append_fields` can be applied here. But
            I can't get it to work.
         """
-        magDtype = [('age',np.float),('mass',np.float),('lbol',np.float),('sfr',np.float)]
+        magDtype = [('age',np.float),('mass',np.float),('lbol',np.float),
+                ('sfr',np.float), ('dust_mass',np.float)]
         magDtype += [(name,np.float) for (idx,name,comment) in FILTER_LIST]
         dt = magDtype + [('spec',np.float,nLambda)]
-        nRows = len(magData)
+        nRows = len(age)
         allData = np.empty(nRows, dtype=dt)
-        for t in magDtype:
-            allData[t[0]] = magData[t[0]]
-        allData['spec'] = specData['spec']
+        allData['age'] = age
+        allData['mass'] = mass
+        allData['lbol'] = lbol
+        allData['sfr'] = sfr
+        allData['dust_mass'] = dust_mass
+        print "magData shape:", magData.shape
+        for (idx,name,comment) in FILTER_LIST:
+            print idx-1, name
+            allData[name] = magData[:,idx-1] # fortran indices start at 1
+        allData['spec'] = specData
         return allData
 
+    def _insert_model(self, modelName, modelData):
+        """docstring for _insert_model"""
+        self.collection.update({"_id": modelName}, {"$set": {"compute_complete": True}})
+        binData = Binary(pickle.dumps(modelData,-1))
+        self.collection.update({"_id": modelName},
+                {"$set": {"np_data": {'_type': 'np.ndarray', 'data':binData}}})
+        # load data with pickle.load(doc['np_data']['data])
+            
+        # Using SON Manipulator:
+        # print c.find_one({"_id": modelName})
+        # print "type:", type(npDataSmall)
+        # c.update({"_id": modelName}, {"$set": {"np_data": npDataSmall}})
+        # print c.find_one({"_id": modelName})['np_data']
+        # print "update complete!"
 
-class SpecParser(object):
-    """Parses spectral tables generated by FSPS
-    
-    Parameters
-    ----------
-
-    specPath : str
-        Path to the .spec file.
-    specType : str, 'basel' or 'miles'
-        The spectral catalog used by FSPS to generate this spectrum.
-
-    Attributes
-    ----------
-
-    data : numpy record array
-        Record arrays with columns `age`, `mass`, `lbol`, `sfr`, and `spec`.
-        Each item in teh `spec` column is the length of `wavelenghs`.
-    wavelengths : ndarray (1D)
-        Wavelength axis of the spectra.
-    """
-    def __init__(self, specPath, specType='basel'):
-        #super(SpecParser, self).__init__()
-        self.specPath = specPath
-        self.specType = specType
-        nLambda = SpecParser.nlambda(specType)
-        
-        f = open(specPath, 'r')
-        allLines = f.readlines()
-        nRows, nLambda = [int(a) for a in allLines[8].split()]
-
-        dtype = [('age',np.float),('mass',np.float),('lbol',np.float),
-                ('sfr',np.float),('spec',np.float,nLambda)]
-        labelCols = ('age','mass','lbol','sfr')
-        self.data = np.zeros(nRows, dtype=dtype)
-        for i in xrange(nRows):
-            iLabel = 10 + i*2
-            iSpec = iLabel + 1
-            for c,x in zip(labelCols, allLines[iLabel].split()):
-                self.data[c][i] = float(x)
-            spec = np.array([float(x) for x in allLines[iSpec].split()])
-            self.data['spec'][i] = spec
-        f.close()
-    
-    @classmethod
-    def nlambda(cls, specType):
-        """Get the number of wavelengths expected in this spectrum."""
-        if specType == 'basel':
-            return 1963 # as of v2.3
-        elif specType == 'miles':
-            return 4222 # FIXME for v2.3
-        else:
-            assert "spec type invalid:", specType
-
-    @property
-    def wavelengths(self):
-        """Get the numpy wavelength vector."""
-        fspsDir = os.environ['SPS_HOME'] # environment variable for FSPS
-        # print fspsDir
-        if self.specType == "basel":
-            lambdaPath = os.path.join(fspsDir,"SPECTRA","BaSeL3.1","basel.lambda")
-        elif self.specType == "miles":
-            lambdaPath = os.path.join(fspsDir,"SPECTRA","MILES","miles.lambda")
-        else:
-            assert "spec type invalid:", self.specType
-        lam = np.loadtxt(lambdaPath)
-        return lam
-
-class MagParser(object):
-    """Parses magnitude tables generated by FSPS.
-    
-    Parameters
-    ----------
-
-    magPath : str
-       Path to the .mag file
-
-    Attributes
-    ----------
-
-    data : record array
-       Has columns `age`, `mass`, `lbol`, `sfr`, and magnitudes listed in
-       the `FILTER_NAMES` module attribute.
-    """
-    def __init__(self, magPath):
-        #super(MagParser, self).__init__()
-        self.magPath = magPath
-        
-        # Define data type in same order as .mag columns so we can
-        # generate a .mag record array in one line
-        dt = [('age',np.float),('mass',np.float),('lbol',np.float),('sfr',np.float)]
-        dt += [(name,np.float) for (idx,name,comment) in FILTER_LIST]
-        self.data = np.loadtxt(magPath, comments="#", dtype=dt)
-        self.data = np.atleast_1d(self.data) # to protect against 1 age results
-        # NOTE be careful here as older outputs may not have the complete
-        # set of outputs; perhaps allow for *fewer* filters
-        # NOTE that loadtxt has no compatibility with bad data; use genfromtxt
-        # http://docs.scipy.org/doc/numpy/user/basics.io.genfromtxt.html
-        # genfromtxt is slower; perhaps use it as a backup?
-
-
-class ParameterSet(object):
-    """An input parameter set for a FSPS model run."""
-    def __init__(self, name, **kwargs):
-        if name is None:
-            self.name = str(bson.objectid.ObjectId())
-        else:
-            self.name = str(name) # name of this model
-        # Default values
-        self.p = {"compute_vega_mags":0, "dust_type":0, "imf_type":0,
-                "isoc_type":'pdva', "redshift_colors":0, "time_res_incr":2,
-                "zred":0., "zmet":1, "sfh":0, "tau":1., "const":0.,
-                "sf_start":0.,"tage":0., "fburst":0., "tburst":0., "imf1":1.3,
-                "imf2":2.3, "imf3":2.3, "vdmc":0.08, "mdave":0.5,
-                "dust_tesc":7., "dust1":0., "dust2":0., "dust_clumps":-99.,
-                "frac_nodust":0., "dust_index":-0.7, "mwr":3.1,
-                "uvb":1., "wgp1":1, "wgp2":1, "wgp3":0, "dell":0.,
-                "delt":0., "sbss":0., "fbhb":0, "pagb":1.}
-        self.knownParameters = self.p.keys()
-        # Update values with user's arguments
-        for k, v in kwargs.iteritems():
-            if k in self.knownParameters:
-                self.p[k] = v
-    
-    def command(self):
-        """Write the string for this parameter set."""
-        # These are pset variables, (aside from sfh)
-        dt = [("zred","%.2f"),("zmet","%02i"),("tau","%.10f"),("const","%.4f"),
-                ("sf_start","%.2f"),("tage","%.4f"),("fburst","%.4f"),
-                ("tburst","%.4f"),("imf1","%.2f"),("imf2","%.2f"),
-                ("imf3","%.2f"),("vdmc","%.2f"),("mdave","%.1f"),
-                ("dust_tesc","%.2f"),("dust1","%.6f"),("dust2","%.6f"),
-                ("dust_clumps","%.1f"),("frac_nodust","%.2f"),
-                ("dust_index","%.2f"),("mwr","%.2f"),("uvb","%.2f"),
-                ("wgp1","%i"),("wgp2","%i"),("wgp3","%i"),("dell","%.2f"),
-                ("delt","%.2f"),("sbss","%.2f"),("fbhb","%.2f"),
-                ("pagb","%.2f")]
-        cmd = str(self.name) + " " + " ".join([s % self.p[k] for (k,s) in dt])
-        return cmd
-    
-    def get_doc(self):
-        """Returns the document dictionary to insert in MongoDB."""
-        return self.p
-
-FILTER_LIST = [(1,'V','Johnson V (from Bessell 1990 via M. Blanton)  - this defines V=0 for the Vega system'),
-        (2,"U","Johnson U (from Bessell 1990 via M. Blanton)"),
-        (3,"CFHT_B","CFHT B-band (from Blanton's kcorrect)"),
-        (4,"CFHT_R","CFHT R-band (from Blanton's kcorrect)"),
-        (5,"CFHT_I","CFHT I-band (from Blanton's kcorrect)"),
-        (6,"TMASS_J","2MASS J filter (total response w/atm)"),
-        (7,"TMASS_H","2MASS H filter (total response w/atm))"),
-        (8,"TMASS_Ks","2MASS Ks filter (total response w/atm)"),
-        (9,"SDSS_u","SDSS Camera u Response Function, airmass = 1.3 (June 2001)"),
-        (10,"SDSS_g","SDSS Camera g Response Function, airmass = 1.3 (June 2001)"),
-        (11,"SDSS_r","SDSS Camera r Response Function, airmass = 1.3 (June 2001)"),
-        (12,"SDSS_i","SDSS Camera i Response Function, airmass = 1.3 (June 2001)"),
-        (13,"SDSS_z","SDSS Camera z Response Function, airmass = 1.3 (June 2001)"),
-        (14,"WFC_ACS_F435W","WFC ACS F435W  (http://acs.pha.jhu.edu/instrument/photometry/)"),
-        (15,"WFC_ACS_F606W","WFC ACS F606W  (http://acs.pha.jhu.edu/instrument/photometry/)"),
-        (16,"WFC_ACS_F775W","WFC ACS F775W (http://acs.pha.jhu.edu/instrument/photometry/)"),
-        (17,"WFC_ACS_F814W","WFC ACS F814W  (http://acs.pha.jhu.edu/instrument/photometry/)"),
-        (18,"WFC_ACS_F850LP","WFC ACS F850LP  (http://acs.pha.jhu.edu/instrument/photometry/)"),
-        (19,"IRAC_1","IRAC Channel 1"),
-        (20,"IRAC_2","IRAC Channel 2"),
-        (21,"IRAC_3","IRAC Channel 3"),
-        (22,"ISAAC_Js","ISAAC Js"),
-        (23,"ISAAC_Ks","ISAAC Ks"),
-        (24,"FORS_V","FORS V"),
-        (25,"FORS_R","FORS R"),
-        (26,"NICMOS_F110W","NICMOS F110W"),
-        (27,"NICMOS_F160W","NICMOS F160W"),
-        (28,"GALEX_NUV","GALEX NUV"),
-        (29,"GALEX_FUV","GALEX FUV"),
-        (30,"DES_g","DES g  (from Huan Lin, for DES camera)"),
-        (31,"DES_r","DES r  (from Huan Lin, for DES camera)"),
-        (32,"DES_i","DES i  (from Huan Lin, for DES camera)"),
-        (33,"DES_z","DES z  (from Huan Lin, for DES camera)"),
-        (34,"DES_Y","DES Y  (from Huan Lin, for DES camera)"),
-        (35,"WFCAM_Z","WFCAM Z  (from Hewett et al. 2006, via A. Smith)"),
-        (36,"WFCAM_Y","WFCAM Y  (from Hewett et al. 2006, via A. Smith)"),
-        (37,"WFCAM_J","WFCAM J  (from Hewett et al. 2006, via A. Smith)"),
-        (38,"WFCAM_H","WFCAM H  (from Hewett et al. 2006, via A. Smith)"),
-        (39,"WFCAM_K","WFCAM K  (from Hewett et al. 2006, via A. Smith)"),
-        (40,"BC03_B","Johnson B (from BC03.  This is the B2 filter from Buser)"),
-        (41,"Cousins_R","Cousins R (from Bessell 1990 via M. Blanton)"),
-        (42,"Cousins_I","Cousins I (from Bessell 1990 via M. Blanton)"),
-        (43,"B","Johnson B (from Bessell 1990 via M. Blanton)"),
-        (44,"WFPC2_F555W","WFPC2 F555W (http://acs.pha.jhu.edu/instrument/photometry/WFPC2/)"),
-        (45,"WFPC2_F814W","WFPC2 F814W (http://acs.pha.jhu.edu/instrument/photometry/WFPC2/)"),
-        (46,"Cousins_I_2","Cousins I (http://acs.pha.jhu.edu/instrument/photometry/GROUND/)"),
-        (47,"WFC3_F275W","WFC3 F275W (ftp://ftp.stsci.edu/cdbs/comp/wfc3/)"),
-        (48,"Steidel_Un","Steidel Un (via A. Shapley; see Steidel et al. 2003)"),
-        (49,"Steidel_G","Steidel G  (via A. Shapley; see Steidel et al. 2003)"),
-        (50,"Steidel_Rs","Steidel Rs (via A. Shapley; see Steidel et al. 2003)"),
-        (51,"Steidel_I","Steidel I  (via A. Shapley; see Steidel et al. 2003)"),
-        (52,"MegaCam_u","CFHT MegaCam u* (http://cadcwww.dao.nrc.ca/megapipe/docs/filters.html, Dec 2010)"),
-        (53,"MegaCam_g","CFHT MegaCam g' (http://cadcwww.dao.nrc.ca/megapipe/docs/filters.html)"),
-        (54,"MegaCam_r","CFHT MegaCam r' (http://cadcwww.dao.nrc.ca/megapipe/docs/filters.html)"),
-        (55,"MegaCam_i","CFHT MegaCam i' (http://cadcwww.dao.nrc.ca/megapipe/docs/filters.html)"),
-        (56,"MegaCam_z","CFHT MegaCam z' (http://cadcwww.dao.nrc.ca/megapipe/docs/filters.html)"),
-        (57,"WISE_W1","3.4um WISE W1 (http://www.astro.ucla.edu/~wright/WISE/passbands.html)"),
-        (58,"WISE_W2","4.6um WISE W2 (http://www.astro.ucla.edu/~wright/WISE/passbands.html)"),
-        (59,"WISE_W3","12um WISE W3 (http://www.astro.ucla.edu/~wright/WISE/passbands.html)"),
-        (60,"WISE_W4","22um WISE W4 22um (http://www.astro.ucla.edu/~wright/WISE/passbands.html)"),
-        (61,"WFC3_F125W","WFC3 F125W (ftp://ftp.stsci.edu/cdbs/comp/wfc3/)"),
-        (62,"WFC3_F160W","WFC3 F160W (ftp://ftp.stsci.edu/cdbs/comp/wfc3/)"),
-        (63,"UVOT_W2","UVOT W2 (from Erik Hoversten, 2011)"),
-        (64,"UVOT_M2","UVOT M2 (from Erik Hoversten, 2011)"),
-        (65,"UVOT_W1","UVOT W1 (from Erik Hoversten, 2011)"),
-        (66,"MIPS_24","Spitzer MIPS 24um"),
-        (67,"MIPS_70","Spitzer MIPS 70um"),
-        (68,"MIPS_160","Spitzer MIPS 160um"),
-        (69,"SCUBA_450WB","JCMT SCUBA 450WB (www.jach.hawaii.edu/JCMT/continuum/background/background.html)"),
-        (70,"SCUBA_850WB","JCMT SCUBA 850WB"),
-        (71,"PACS_70","Herschel PACS 70um"),
-        (72,"PACS_100","Herschel PACS 100um"),
-        (73,"PACS_160","Herschel PACS 160um"),
-        (74,"SPIRE_250","Herschel SPIRE 250um"),
-        (75,"SPIRE_350","Herschel SPIRE 350um"),
-        (76,"SPIRE_500","Herschel SPIRE 500um"),
-        (77,"IRAS_12","IRAS 12um"),
-        (78,"IRAS_25","IRAS 25um"),
-        (79,"IRAS_60","IRAS 60um"),
-        (80,"Bessell_L","Bessell & Brett (1988) L band"),
-        (81,"Bessell_LP","Bessell & Brett (1988) L' band"),
-        (82,"Bessell_M","Bessell & Brett (1988) M band")]
-
-def get_metallicity_LUT(isocType, specType):
-    """docstring for as_metallicity"""
-    if isocType=="pdva" and specType=="basel":
-        return (0.0002, 0.0003, 0.0004, 0.0005,0.0006,0.0008,0.0010,
-            0.0012,0.0016,0.0020,0.0025,0.0031,0.0039,0.0049,0.0061,
-            0.0077,0.0096,0.0120,0.0150,0.0190,0.0240,0.0300)
 
 class NumpySONManipulator(SONManipulator):
     """Taken from Dan-FM's gist: https://gist.github.com/1143729"""
