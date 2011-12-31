@@ -50,7 +50,8 @@ class FSPSLibrary(object):
             "compute_started": False, "compute_complete": False}
         self.collection.insert(doc)
     
-    def compute_models(self, nThreads=1, maxN=10):
+    def compute_models(self, nThreads=1, maxN=10, compute_vega_mags=0,
+            redshift_colors=0):
         """Fire up FSPS to generate SP models.
         
         Parameters
@@ -61,9 +62,15 @@ class FSPSLibrary(object):
         maxN : int, optional
             Maximum number of jobs that can be given to a single
             `fspsq` process.
+        compute_vega_mags : int, optional
+            Set to 1 to produce magnitudes in vega system, 0 for AB (default)
+            Note: this overrides any setting in the parameter sets
+        redshift_colors : int, optional
+            Set to 0 to leave colours in rest frame
         """
         queue_runner = QueueRunner(self.libname, self.dbname, self.host,
-                self.port, maxN)
+                self.port, maxN, compute_vega_mags=compute_vega_mags,
+                redshift_colors=redshift_colors)
         nodeNames = [str(i) for i in xrange(1,nThreads+1)]
         if nThreads > 1:
             pool = multiprocessing.Pool(processes=nThreads)
@@ -179,13 +186,16 @@ class QueueRunner(object):
     
     This is typically called via :meth:`FSPSLibrary.compute_models()`.
     """
-    def __init__(self, libname, dbname, dbhost, dbport, maxN, tage=None):
+    def __init__(self, libname, dbname, dbhost, dbport, maxN,
+            compute_vega_mags=0, redshift_colors=0):
         #super(QueueRunner, self).__init__()
         self.libname = libname
         self.dbname = dbname
         self.dbhost = dbhost
         self.dbport = dbport
         self.maxN = maxN
+        self.compute_vega_mags = compute_vega_mags
+        self.redshift_colors = redshift_colors
 
     def __call__(self, nodeName):
         """Executed in the pool mapping; looks for and computes models."""
@@ -201,6 +211,10 @@ class QueueRunner(object):
         
         commonVarSets = self._make_common_var_sets()
         # print "commonVarSets:", commonVarSets
+
+        # Initialize FSPS
+        fsps.driver.setup(self.compute_vega_mags, self.redshift_colors)
+
         for varSet in commonVarSets:
             while True:
                 psets = []
@@ -267,7 +281,7 @@ class QueueRunner(object):
 
     def _compute_model(self, pset):
         """Computes a model and inserts results into the Mongo collection."""
-        fsps.driver.setup(pset['compute_vega_mags'], pset['redshift_colors'])
+        
         nBands = fsps.driver.get_n_bands()
         nLambda = fsps.driver.get_n_lambda()
         nAges = fsps.driver.get_n_ages()
