@@ -189,7 +189,7 @@ contains
     ! Get spectra for a single indexed age
     subroutine get_csp_specs_at_age(iage, n_lambda, spec_array)
         integer, intent(in) :: iage, n_lambda
-        real, dimension(n_lambda) :: spec_array
+        real, dimension(n_lambda), intent(out) :: spec_array
         spec_array = ocompsp(iage)%spec
     end subroutine
 
