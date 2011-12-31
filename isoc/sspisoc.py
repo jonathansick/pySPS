@@ -43,10 +43,10 @@ class SSPIsocFactory(object):
         nAges = fsps.driver.get_n_ages_isochrone()
         nBands = fsps.driver.get_n_bands()
         nMasses = fsps.driver.get_n_masses_isochrone(p['zmet'], p['iage'])
-        age, Z, massInit, logL, logg, ffco, phase, wght, mags \
+        age, Z, massInit, logL, logT, logg, ffco, phase, wght, mags \
                 = fsps.driver.get_isochrone(p['zmet'], p['iage'], nMasses, nBands)
-        isocData = self.package_isochrone(massInit, logL, logg, ffco, phase,
-                wght, mags)
+        isocData = self.package_isochrone(massInit, logL, logT, logg, ffco,
+                phase, wght, mags)
         return age, Z, isocData
 
     def package_isochrone(self, massInit, logL, logT, logg, ffco, phase,
