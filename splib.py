@@ -51,8 +51,10 @@ class FSPSLibrary(object):
         self.collection.insert(doc)
     
     def compute_models(self, nThreads=1, maxN=10, compute_vega_mags=0,
-            redshift_colors=0):
-        """Fire up FSPS to generate SP models.
+            redshift_colors=0, imf_type=0, imf1=1.3, imf2=2.3, imf3=2.3,
+            vdmc=0.08, mdave=0.5, dell=0., delt=0., sbss=0., fbhb=0., pagb=1.):
+        """Fire up FSPS to generate SP models, assuming a common ssp set with
+        common IMF and isochrone modifications.
         
         Parameters
         ----------
@@ -68,9 +70,12 @@ class FSPSLibrary(object):
         redshift_colors : int, optional
             Set to 0 to leave colours in rest frame
         """
-        queue_runner = QueueRunner(self.libname, self.dbname, self.host,
+        queue_runner = QueueRunnerIsoSSP(self.libname, self.dbname, self.host,
                 self.port, maxN, compute_vega_mags=compute_vega_mags,
-                redshift_colors=redshift_colors)
+                redshift_colors=redshift_colors,
+                imf_type=imf_type, imf1=imf1, imf2=imf2, imf3=imf3,
+                vdmc=vdmc, mdave=mdave, dell=dell, delt=delt, sbss=sbss,
+                fbhb=fbhb, pagb=pagb)
         nodeNames = [str(i) for i in xrange(1,nThreads+1)]
         if nThreads > 1:
             pool = multiprocessing.Pool(processes=nThreads)
@@ -181,21 +186,36 @@ class FSPSLibrary(object):
             ('yi',np.int),('ml',np.float)])
         return ccDtype
 
-class QueueRunner(object):
-    """Executes a queue of FSPS models.
+class QueueRunnerIsoSSP(object):
+    """Executes a queue of FSPS models. Assumes SSPs share a common IMF
+    and isochrone modifications.
     
     This is typically called via :meth:`FSPSLibrary.compute_models()`.
     """
-    def __init__(self, libname, dbname, dbhost, dbport, maxN,
-            compute_vega_mags=0, redshift_colors=0):
+    def __init__(self, libname, dbname, dbhost, dbport, maxN, jobQuery={},
+            compute_vega_mags=0, redshift_colors=0,
+            imf_type=0, imf1=1.3, imf2=2.3, imf3=2.3, vdmc=0.08, mdave=0.5,
+            dell=0., delt=0., sbss=0., fbhb=0., pagb=1.):
         #super(QueueRunner, self).__init__()
         self.libname = libname
         self.dbname = dbname
         self.dbhost = dbhost
         self.dbport = dbport
         self.maxN = maxN
+        self.jobQuery = jobQuery
         self.compute_vega_mags = compute_vega_mags
         self.redshift_colors = redshift_colors
+        self.imf_type = imf_type
+        self.imf1 = imf1
+        self.imf2 = imf2
+        self.imf3 = imf3
+        self.vdmc = vdmc
+        self.mdave = mdave
+        self.dell = dell
+        self.delt = delt
+        self.sbss = sbss
+        self.fbhb = fbhb
+        self.pagb = pagb
 
     def __call__(self, nodeName):
         """Executed in the pool mapping; looks for and computes models."""
@@ -209,99 +229,41 @@ class QueueRunner(object):
         db.add_son_manipulator(NumpySONManipulator())
         self.collection = db[self.libname]
         
-        commonVarSets = self._make_common_var_sets()
-        # print "commonVarSets:", commonVarSets
-
         # Initialize FSPS
         fsps.driver.setup(self.compute_vega_mags, self.redshift_colors)
+        # Initialize SSPs for this common SSP set
+        fsps.driver.setup_all_ssp(self.imf_type, self.imf1,
+                self.imf2, self.imf3, self.vdmc,
+                self.mdave, self.dell, self.delt,
+                self.sbss, self.fbhb, self.pagb)
 
-        for varSet in commonVarSets:
-            while True:
-                psets = []
-                modelNames = []
-                now = datetime.datetime.utcnow()
-                now = now.replace(tzinfo=pytz.utc)
-                while len(psets) <= self.maxN:
-                    q = {"compute_complete": False, "compute_started": False}
-                    q.update(varSet)
-                    # print "q", q
-                    doc = self.collection.find_and_modify(query=q,
-                        update={"$set": {"compute_started": True,
-                                        "queue_date": now,
-                                        "compute_host": thisHost}},)
-                    # print "doc", doc
-                    if doc is None: break # no available models
-                    modelName = str(doc['_id'])
-                    pset = ParameterSet(modelName, **doc['pset'])
-                    psets.append(pset)
-                    modelNames.append(pset.name)
-                if len(psets) == 0: break # empty job queue
-                # Initialize SSPs for this common SSP set
-                pset = psets[0]
-                fsps.driver.setup_all_ssp(pset['imf_type'], pset['imf1'],
-                        pset['imf2'], pset['imf3'], pset['vdmc'],
-                        pset['mdave'], pset['dell'], pset['delt'],
-                        pset['sbss'], pset['fbhb'], pset['pagb'])
-                # Startup a computation: write command file and start fspsq
-                for pset in psets:
-                    self._compute_model(pset)
+        while True:
+            psets = []
+            modelNames = []
+            now = datetime.datetime.utcnow()
+            now = now.replace(tzinfo=pytz.utc)
+            while len(psets) <= self.maxN:
+                q = {"compute_complete": False, "compute_started": False}
+                q.update(self.jobQuery)
+                # print "q", q
+                doc = self.collection.find_and_modify(query=q,
+                update={"$set": {"compute_started": True,
+                                    "queue_date": now,
+                                    "compute_host": thisHost}},)
+                # print "doc", doc
+                if doc is None: break # no available models
+                modelName = str(doc['_id'])
+                pset = ParameterSet(modelName, **doc['pset'])
+                psets.append(pset)
+                modelNames.append(pset.name)
+            if len(psets) == 0: break # empty job queue
+            # Startup a computation: write command file and start fspsq
+            for pset in psets:
+                self._compute_model(pset)
 
-
-    def _make_common_var_sets(self):
-        """Make a list of common variable setups.
-
-        The idea is that some of the fortran COMMON BLOCK parameters cannot
-        be changed after `sps_setup` is called. Thus each run of fspsq is
-        with models that share common block paramters.
-        
-        .. note:: This merely lists all *possible* combinations of common variable
-        configurations. There is not guarantee that there are models needing
-        computation for each configuration set.
-        
-        Parameters
-        ----------
-        c : pymongo.Collection instance
-        
-        Returns
-        -------
-        List of dictionaries. Each dictionary has keys representing common
-        variables: sfh, dust_type, imf_type, compute_vega_mags, redshift_colors
-        """
-        params = ['imf_type', 'imf1', 'imf2', 'imf3', 'vdmc', 'mdave',
-                'dell', 'delt', 'sbss', 'fbhb', 'pagb',
-                'compute_vega_mags', 'redshift_colors']
-        possibleValues = {}
-        for param in params:
-            possibleValues[param] = self.collection.distinct("pset."+param)
-        groups = []
-        for iimf_type in possibleValues['imf_type']:
-            for iimf1 in possibleValues['imf1']:
-                for iimf2 in possibleValues['imf2']:
-                    for iimf3 in possibleValues['imf3']:
-                        for ivdmc in possibleValues['vdmc']:
-                            for imdave in possibleValues['mdave']:
-                                for idell in possibleValues['dell']:
-                                    for idelt in possibleValues['delt']:
-                                        for isbss in possibleValues['sbss']:
-                                            for ifbhb in possibleValues['fbhb']:
-                                                for ipagb in possibleValues['pagb']:
-                                                    groups.append(
-                                                        {"pset.imf_type":iimf_type,
-                                                        "imf1":iimf1,
-                                                        "imf2":iimf2,
-                                                        "imf3":iimf3,
-                                                        "vdmc":ivdmc,
-                                                        "mdave":imdave,
-                                                        "dell":idell,
-                                                        "delt":idelt,
-                                                        "sbss":isbss,
-                                                        "fbhb":ifbhb,
-                                                        "pagb":ipagb})
-        return groups
 
     def _compute_model(self, pset):
         """Computes a model and inserts results into the Mongo collection."""
-        
         nBands = fsps.driver.get_n_bands()
         nLambda = fsps.driver.get_n_lambda()
         nAges = fsps.driver.get_n_ages()
