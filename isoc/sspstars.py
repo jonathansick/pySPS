@@ -50,8 +50,11 @@ class SSPStarFactory(object):
         print "total wght", isocData['wght'].sum()
         print "Total mass*weight", np.sum(isocData['mass_init']*isocData['wght'])
         sampleMasses = sample_isochrone_masses(isocData['mass_init'],
-                isocData['wght'], self.nStars)
+                isocData['wght'], self.nStars,
+                # TODO change min mass to also work with limiting magnitudes
+                minMassIndex=np.argmin((self.massLim-isocData['mass_init'])**2.))
         print "sampleMasses:", sampleMasses
+        print "isoc phases", isocData['phase']
         interpMags = self.linearly_interp_mags(sampleMasses, isocData)
         # Perturb the photometry with an error model
         sampleMags = self.apply_phot_errors(interpMags) # TODO user call back?
@@ -95,9 +98,12 @@ def sample_isochrone_masses(massGrid, wghtGrid, nStars, minMassIndex=0):
     An accept-reject algorithm is used to sample masses according to
     the probability distribution function `wghtGrid`.
     """
-    dM = massGrid[1] - massGrid[0]
-    minMass = massGrid[minMassIndex] - dM
-    maxMass = massGrid[-1] + dM
+    #dM = massGrid[1] - massGrid[0]
+    if minMassIndex is not 0:
+        minMass = massGrid[minMassIndex]
+    else:
+        minMass = min(massGrid)# - dM
+    maxMass = max(massGrid)# + dM
     starMasses = [] # output array of sampled stellar masses
     maxWght = wghtGrid.max()
     f_wght = interp1d(massGrid, wghtGrid)
@@ -105,16 +111,17 @@ def sample_isochrone_masses(massGrid, wghtGrid, nStars, minMassIndex=0):
         randMass = np.random.uniform(low=minMass, high=maxMass, size=None)
         randY = np.random.uniform(low=0., high=maxWght, size=None)
         # Interpolate the weight. Special cases for the +- dM at ends of grid
-        if randMass < massGrid[0]:
-            w = wghtGrid[0]
-        elif randMass > massGrid[1]:
-            w = wghtGrid[1]
-        else:
-            w = f_wght(randMass)
+        #if randMass < massGrid[0]:
+        #    w = wghtGrid[0]
+        #elif randMass > massGrid[1]:
+        #    w = wghtGrid[1]
+        #else:
+        w = f_wght(randMass)
         # Test for sample acceptance
         if randY <= w:
             # accept this sample
             starMasses.append(randMass)
+            print len(starMasses)
     return starMasses
 
 if __name__ == '__main__':
