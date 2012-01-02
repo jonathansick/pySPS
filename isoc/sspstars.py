@@ -54,7 +54,7 @@ class SSPStarFactory(object):
                 # TODO change min mass to also work with limiting magnitudes
                 minMassIndex=np.argmin((self.massLim-isocData['mass_init'])**2.))
         print "sampleMasses:", sampleMasses
-        print "isoc phases", isocData['phase']
+        print "isoc phases preset:", set(isocData['phase'].tolist())
         interpMags = self.linearly_interp_mags(sampleMasses, isocData)
         # Perturb the photometry with an error model
         sampleMags = self.apply_phot_errors(interpMags) # TODO user call back?
