@@ -10,6 +10,7 @@ History
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from pysps import sp_params
 from sspstars import SSPStarFactory
@@ -22,7 +23,17 @@ def main():
     age, Z, isocData = isocFactory(pset)
     print age, Z
     starFactory = SSPStarFactory(10000)
-    starFactory((age, Z, isocData))
+    mags = starFactory((age, Z, isocData))
+
+    fig = plt.figure(figsize=(6,6))
+    ax = fig.add_axes((0.2,0.2,0.75,0.75))
+    ax.scatter(mags['MegaCam_u']-mags['MegaCam_g'], mags['MegaCam_g'],
+            marker='o', s=0.5, alpha=0.5, edgecolor='none', facecolor='k')
+    ylim = ax.get_ylim()
+    ax.set_ylim(ylim[1],ylim[0])
+    fig.savefig("synth_cmd.png", format="png", dpi=300)
+
+
 
 if __name__ == '__main__':
     main()

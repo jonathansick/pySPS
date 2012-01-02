@@ -57,9 +57,12 @@ class SSPIsocFactory(object):
         bandNames = []
         for bandSet in FILTER_LIST:
             bandNames.append(bandSet[1])
-        colDefs = np.dtype([('mass_init',np.float),('logL',np.float),
+        cols = [('mass_init',np.float),('logL',np.float),
             ('logT',np.float),('logg',np.float),('ffco',np.float),
-            ('phase',np.int),('wght',np.float),('mag',np.float,nBands)])
+            ('phase',np.int),('wght',np.float)]
+        for (bandIdx,bandName,comment) in FILTER_LIST:
+            cols.append((bandName,np.float))
+        colDefs = np.dtype(cols)
         isocData = np.empty(nMass, dtype=colDefs)
         isocData['mass_init'] = massInit
         isocData['logL'] = logL
@@ -68,9 +71,9 @@ class SSPIsocFactory(object):
         isocData['ffco'] = ffco
         isocData['phase'] = phase
         isocData['wght'] = wght
-        isocData['mag'] = isocMags
+        for (bandIdx,bandName,comment) in FILTER_LIST:
+            isocData[bandName] = isocMags[:,bandIdx-1]
         print "isocMags.shape", isocMags.shape
-        print "isocData['mag'].shape", isocData['mag'].shape
         return isocData
 
 
