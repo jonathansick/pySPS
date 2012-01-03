@@ -23,16 +23,17 @@ def main():
     age, Z, isocData = isocFactory(pset)
     print age, Z
     plot_phase_imf(isocData, "phase_imf")
-    starFactory = SSPStarFactory(10000, massLim=1.)
-    mags = starFactory((age, Z, isocData))
+    test_mass_monotonicity(isocData)
+    #starFactory = SSPStarFactory(10000, massLim=1.)
+    #mags = starFactory((age, Z, isocData))
 
-    fig = plt.figure(figsize=(6,6))
-    ax = fig.add_axes((0.2,0.2,0.75,0.75))
-    ax.scatter(mags['MegaCam_u']-mags['MegaCam_g'], mags['MegaCam_g'],
-            marker='o', s=2, alpha=0.25, edgecolor='none', facecolor='k')
-    ylim = ax.get_ylim()
-    ax.set_ylim(ylim[1],ylim[0])
-    fig.savefig("synth_cmd.png", format="png", dpi=300)
+    #fig = plt.figure(figsize=(6,6))
+    #ax = fig.add_axes((0.2,0.2,0.75,0.75))
+    #ax.scatter(mags['MegaCam_u']-mags['MegaCam_g'], mags['MegaCam_g'],
+    #        marker='o', s=2, alpha=0.25, edgecolor='none', facecolor='k')
+    #ylim = ax.get_ylim()
+    #ax.set_ylim(ylim[1],ylim[0])
+    #fig.savefig("synth_cmd.png", format="png", dpi=300)
 
 def plot_phase_imf(isocData, plotPath):
     """docstring for plot_phase_imf"""
@@ -48,6 +49,16 @@ def plot_phase_imf(isocData, plotPath):
         inPhase = np.where(phases == p)[0]
         ax.semilogy(M[inPhase], M[inPhase]*wght[inPhase], '-o')
     fig.savefig(plotPath+".pdf", format="pdf")
+
+#test_mass_monotonicity(isocData)
+def test_mass_monotonicity(isocData):
+    """Verfy that the mass of each successive index is greater than the prev."""
+    massArray = isocData['mass_init']
+    for i in xrange(1, len(massArray)):
+        if massArray[i] <= massArray[i-1]:
+            print "Index %i not monotonic",
+            print "phases:", isocData['phase'][i], isocData['phase'][i-1]
+    print "Finished monotonicity check"
 
 
 
