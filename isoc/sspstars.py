@@ -63,23 +63,22 @@ class SSPStarFactory(object):
     def linearly_interp_mags(self, sampleMasses, isocData):
         """docstring for linearly_interp_mags"""
         massGrid = isocData['mass_init']
-        lowMasses = np.where(sampleMasses < massGrid[0])[0]
-        highMasses = np.where(sampleMasses > massGrid[-1])[0]
+        lowMasses = np.where(sampleMasses < min(massGrid))[0]
+        highMasses = np.where(sampleMasses > max(massGrid))[0]
+        lowMassIdx = np.argmin(massGrid)
+        highMassIdx = np.argmax(massGrid)
         nStars = len(sampleMasses)
-        cols = []
+        cols = [('phase',np.int),('mass_init',np.float)]
         for (bandIdx,bandName,comment) in FILTER_LIST:
             cols.append((bandName,np.float))
         sampleMags = np.empty(nStars, dtype=np.dtype(cols))
+        sampleMags['mass_init'] = sampleMasses
         for (bandIdx,bandName,comment) in FILTER_LIST:
             f_mag = interp1d(massGrid, isocData[bandName], bounds_error=False,
                     fill_value=np.nan)
-            #interpMags = f_mag(sampleMasses)
-            #print "interpMags[:,0].shape", interpMags[:,0].shape
-            #print "sampleMags[%s].shape"%bandName, sampleMags[bandName].shape
-            # Need to slice f_mag output to match shape of sampleMags[bandName]
-            sampleMags[bandName] = f_mag(sampleMasses)#[:,0]
-            sampleMags[bandName][lowMasses] = isocData[bandName][0]
-            sampleMags[bandName][highMasses] = isocData[bandName][-1]
+            sampleMags[bandName] = f_mag(sampleMasses)
+            sampleMags[bandName][lowMasses] = isocData[bandName][lowMassIdx]
+            sampleMags[bandName][highMasses] = isocData[bandName][highMassIdx]
         return sampleMags
 
     def apply_phot_errors(self, interpMags, sigma=0.1):
@@ -98,24 +97,17 @@ def sample_isochrone_masses(massGrid, wghtGrid, nStars, minMassIndex=0):
     An accept-reject algorithm is used to sample masses according to
     the probability distribution function `wghtGrid`.
     """
-    #dM = massGrid[1] - massGrid[0]
     if minMassIndex is not 0:
         minMass = massGrid[minMassIndex]
     else:
-        minMass = min(massGrid)# - dM
-    maxMass = max(massGrid)# + dM
+        minMass = min(massGrid)
+    maxMass = max(massGrid)
     starMasses = [] # output array of sampled stellar masses
     maxWght = wghtGrid.max()
     f_wght = interp1d(massGrid, wghtGrid)
     while len(starMasses) < nStars:
         randMass = np.random.uniform(low=minMass, high=maxMass, size=None)
         randY = np.random.uniform(low=0., high=maxWght, size=None)
-        # Interpolate the weight. Special cases for the +- dM at ends of grid
-        #if randMass < massGrid[0]:
-        #    w = wghtGrid[0]
-        #elif randMass > massGrid[1]:
-        #    w = wghtGrid[1]
-        #else:
         w = f_wght(randMass)
         # Test for sample acceptance
         if randY <= w:
