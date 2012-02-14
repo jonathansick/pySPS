@@ -253,10 +253,10 @@ contains
         real(SP), dimension(nbands) :: mags ! vector of mags for FSPS
         
         ! check that n_mass == nmass_isoc(zz,tt)
-        write (*,*) 'In get_isochrone()'
+        !write (*,*) 'In get_isochrone()'
         call IMF_WEIGHT(mini_isoc(zz,tt,:), wght, nmass_isoc(zz,tt))
-        write (*,*) 'Finished IMF_WEIGHT'
-        write (*,*) nmass_isoc(zz,tt)
+        !write (*,*) 'Finished IMF_WEIGHT'
+        !write (*,*) nmass_isoc(zz,tt)
         do i = 1, nmass_isoc(zz,tt)
             ! Compute mags on isochrone at this mass
             call GETSPEC(zz, mini_isoc(zz,tt,i), mact_isoc(zz,tt,i), &
@@ -264,11 +264,11 @@ contains
                     phase_isoc(zz,tt,i), ffco_isoc(zz,tt,i), spec)
             call GETMAGS(0.0, spec, mags)
             ! Fill in outputs for this mass
-            write (*,*) i
-            write (*,*) logl_isoc(zz,tt,i)
-            write (*,*) ffco_isoc(zz,tt,i)
-            write (*,*) phase_isoc(zz,tt,i)
-            write (*,*) wght(i)
+            !write (*,*) i
+            !write (*,*) logl_isoc(zz,tt,i)
+            !write (*,*) ffco_isoc(zz,tt,i)
+            !write (*,*) phase_isoc(zz,tt,i)
+            !write (*,*) wght(i)
             mass_init_out(i) = mini_isoc(zz,tt,i)
             logl_out(i) = logl_isoc(zz,tt,i)
             logt_out(i) = logt_isoc(zz,tt,i)
@@ -277,8 +277,8 @@ contains
             phase_out(i) = phase_isoc(zz,tt,i)
             wght_out(i) = wght(i)
             mags_out(i,:) = mags(:)
-            write (*,*) mags_out(i,:)
-            write (*,*) '--'
+            !write (*,*) mags_out(i,:)
+            !write (*,*) '--'
         end do
 
         ! Fill in time and metallicity of this isochrone
