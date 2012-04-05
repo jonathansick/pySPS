@@ -61,6 +61,20 @@ class ParameterSet(object):
     def get_doc(self):
         """Returns the document dictionary to insert in MongoDB."""
         return self.p
+    
+    def comp_sp_args(self):
+        """Generate the arguments list for comp_sp.
+        
+        Then when calling comp_sp, simply use:
+        > fsps.driver.comp_sp(*pset.comp_sp_args())
+        """
+        return (self.p['dust_type'], self.p['zmet'], self.p['sfh'],
+            self.p['tau'], self.p['const'], self.p['fburst'], self.p['tburst'],
+            self.p['dust_tesc'], self.p['dust1'], self.p['dust2'],
+            self.p['dust_clumps'], self.p['frac_nodust'], self.p['dust_index'],
+            self.p['mwr'], self.p['wgp1'], self.p['wgp2'], self.p['wgp3'], 
+            self.p['duste_gamma'], self.p['duste_umin'], self.p['duste_qpah'],
+            self.p['tage'])
 
 FILTER_LIST = [(1,'V','Johnson V (from Bessell 1990 via M. Blanton)  - this defines V=0 for the Vega system'),
         (2,"U","Johnson U (from Bessell 1990 via M. Blanton)"),
