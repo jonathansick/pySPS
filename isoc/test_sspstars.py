@@ -24,16 +24,62 @@ def main():
     print age, Z
     plot_phase_imf(isocData, "phase_imf")
     test_mass_monotonicity(isocData)
-    #starFactory = SSPStarFactory(10000, massLim=1.)
-    #mags = starFactory((age, Z, isocData))
+    starFactory = SSPStarFactory(100000, massLim=2.1)
+    mags = starFactory((age, Z, isocData))
 
-    #fig = plt.figure(figsize=(6,6))
-    #ax = fig.add_axes((0.2,0.2,0.75,0.75))
-    #ax.scatter(mags['MegaCam_u']-mags['MegaCam_g'], mags['MegaCam_g'],
-    #        marker='o', s=2, alpha=0.25, edgecolor='none', facecolor='k')
-    #ylim = ax.get_ylim()
-    #ax.set_ylim(ylim[1],ylim[0])
-    #fig.savefig("synth_cmd.png", format="png", dpi=300)
+    plot_cmd_phase_isoc(mags, isocData)
+
+    fig = plt.figure(figsize=(6,6))
+    ax = fig.add_axes((0.2,0.2,0.75,0.75))
+    ax.scatter(mags['MegaCam_u']-mags['MegaCam_g'], mags['MegaCam_g'],
+            marker='o', s=2, alpha=0.25, edgecolor='none', facecolor='k')
+    ylim = ax.get_ylim()
+    ax.set_ylim(ylim[1],ylim[0])
+    fig.savefig("synth_cmd.png", format="png", dpi=300)
+
+def plot_cmd_phase(stars):
+    """docstring for plot_cmd_phase"""
+    phases = list(set(stars['phase'].tolist()))
+    phases.sort()
+    fig = plt.figure(figsize=(6,6))
+    ax = fig.add_axes((0.15,0.15,0.75,0.75))
+    colours = ['k','r','b','c','m','y']
+    for p, c in zip(phases, colours):
+        pp = np.where(stars['phase'] == p)[0]
+        print "%i stars of type %i" % (len(pp),p)
+        ax.scatter(stars['MegaCam_g'][pp]-stars['MegaCam_i'][pp],
+                stars['MegaCam_i'][pp],
+                marker='o', s=2, alpha=1., edgecolor='none',facecolor=c,
+                zorder=p)
+    ylim = ax.get_ylim()
+    ax.set_ylim(ylim[1],ylim[0])
+    ax.set_xlabel(r"$g^\prime - i^\prime$")
+    ax.set_ylabel(r"$i^\prime$")
+    fig.savefig("synth_cmd_phases.png", format="png", dpi=300)
+
+
+def plot_cmd_phase_isoc(stars, isocData):
+    """docstring for plot_cmd_phase"""
+    phases = list(set(isocData['phase'].tolist()))
+    phases.sort()
+    fig = plt.figure(figsize=(6,6))
+    ax = fig.add_axes((0.15,0.15,0.75,0.75))
+    ax.scatter(stars['MegaCam_g']-stars['MegaCam_i'],
+                stars['MegaCam_i'],
+                marker='o', s=2, alpha=1., edgecolor='none',facecolor='0.5',
+                zorder=0)
+    # Overplot isochrone, coloured by phase
+    colours = ['r','g','b','c','m','y']
+    for p, c in zip(phases, colours):
+        pp = np.where(isocData['phase'] == p)[0]
+        ax.plot(isocData['MegaCam_g'][pp]-isocData['MegaCam_i'][pp],
+            isocData['MegaCam_i'][pp], ls='-', c=c, lw=2, alpha=0.5,
+            marker='None')
+    ylim = ax.get_ylim()
+    ax.set_ylim(ylim[1],ylim[0])
+    ax.set_xlabel(r"$g^\prime - i^\prime$")
+    ax.set_ylabel(r"$i^\prime$")
+    fig.savefig("synth_cmd_phases_isoc.png", format="png", dpi=300)
 
 def plot_phase_imf(isocData, plotPath):
     """docstring for plot_phase_imf"""

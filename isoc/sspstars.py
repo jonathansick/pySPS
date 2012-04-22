@@ -16,6 +16,7 @@ History
 
 import numpy as np
 from scipy.interpolate import interp1d
+import scipy.spatial
 
 from pysps.sp_params import FILTER_LIST
 
@@ -44,9 +45,7 @@ class SSPStarFactory(object):
         different SSPs in a CMD.
         """
         age, Z, isocData = args # outputs from SSPIsocFactory
-        dM = isocData['mass_init'][1] - isocData['mass_init'][0]
         print "Total mass", isocData['mass_init'].sum()
-        print "dM", dM
         print "total wght", isocData['wght'].sum()
         print "Total mass*weight", np.sum(isocData['mass_init']*isocData['wght'])
         sampleMasses = sample_isochrone_masses(isocData['mass_init'],
@@ -56,6 +55,7 @@ class SSPStarFactory(object):
         print "sampleMasses:", sampleMasses
         print "isoc phases preset:", set(isocData['phase'].tolist())
         interpMags = self.linearly_interp_mags(sampleMasses, isocData)
+        interpMags = self.assign_phase(interpMags, isocData)
         # Perturb the photometry with an error model
         sampleMags = self.apply_phot_errors(interpMags) # TODO user call back?
         return sampleMags
@@ -71,15 +71,25 @@ class SSPStarFactory(object):
         cols = [('phase',np.int),('mass_init',np.float)]
         for (bandIdx,bandName,comment) in FILTER_LIST:
             cols.append((bandName,np.float))
-        sampleMags = np.empty(nStars, dtype=np.dtype(cols))
-        sampleMags['mass_init'] = sampleMasses
+        stars = np.empty(nStars, dtype=np.dtype(cols))
+        stars['mass_init'] = sampleMasses
         for (bandIdx,bandName,comment) in FILTER_LIST:
             f_mag = interp1d(massGrid, isocData[bandName], bounds_error=False,
                     fill_value=np.nan)
-            sampleMags[bandName] = f_mag(sampleMasses)
-            sampleMags[bandName][lowMasses] = isocData[bandName][lowMassIdx]
-            sampleMags[bandName][highMasses] = isocData[bandName][highMassIdx]
-        return sampleMags
+            stars[bandName] = f_mag(sampleMasses)
+            stars[bandName][lowMasses] = isocData[bandName][lowMassIdx]
+            stars[bandName][highMasses] = isocData[bandName][highMassIdx]
+        return stars
+
+    def assign_phase(self, stars, isocData):
+        """docstring for assign_phase"""
+        print "mass init shape", isocData['mass_init'].shape
+        tree = scipy.spatial.KDTree(np.atleast_2d(isocData['mass_init']).T)
+        deltaM, isocIndices = tree.query(np.atleast_2d(stars['mass_init']).T, k=1)
+        print "isoc indices shape", isocIndices.shape
+        stars['phase'] = isocData['phase'][isocIndices]
+        return stars
+
 
     def apply_phot_errors(self, interpMags, sigma=0.1):
         """TODO test method, need to implement user call back for errors."""
@@ -113,7 +123,7 @@ def sample_isochrone_masses(massGrid, wghtGrid, nStars, minMassIndex=0):
         if randY <= w:
             # accept this sample
             starMasses.append(randMass)
-            print len(starMasses)
+            #print len(starMasses)
     return starMasses
 
 if __name__ == '__main__':
