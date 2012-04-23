@@ -14,9 +14,9 @@ Prerequisties
 Building pySPS
 --------------
 
-1. Copy or checkout pySPS into a directory in your python path, such as `site-packages`.
-2. Copy the `src/` directory from your FSPS installation into the pySPS package directory. Re-name the directory to `fsps`.
-3. Build the fortran exectuables with a `make` command. The make file relies upon your having gfortran. Adjust the Makefile as necessary for your environment. You'll want to run make clean afterwards to get rid the object files.
+1. Copy or checkout pySPS
+2. Build the fortran extension module, `python buildext.py`
+3. Install the module in site-packages: `python setup.py develop`
 
 That's it.
 
