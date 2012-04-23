@@ -248,9 +248,12 @@ contains
         real, dimension(n_mass), intent(out) :: wght_out
         real, dimension(n_mass, n_mags), intent(out) :: mags_out
         integer :: i
-        real(SP), dimension(nm) :: wght ! 1500; max n of masses for any isoc
-        real(SP), dimension(nspec)  :: spec
-        real(SP), dimension(nbands) :: mags ! vector of mags for FSPS
+        real, dimension(nm) :: wght ! 1500; max n of masses for any isoc
+        !f2py intent(hide) wght
+        real, dimension(nspec)  :: spec
+        !f2py intent(hide) spec
+        real, dimension(nbands) :: mags ! vector of mags for FSPS
+        !f2py intent(hide) mags
         
         ! check that n_mass == nmass_isoc(zz,tt)
         !write (*,*) 'In get_isochrone()'
