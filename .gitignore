@@ -13,3 +13,4 @@ processor*
 *.so
 *.mod
 pysps.egg-info/
+*.pyf
