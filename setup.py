@@ -15,6 +15,7 @@ numpy
 pymongo
 """
 
+
 class BuildFSPS(Command):
     """setuptools command for compiling the fsps extension."""
     description = "Build FSPS and the fsps extension module"
@@ -31,20 +32,22 @@ class BuildFSPS(Command):
         fspsDir = os.environ["SPS_HOME"]
 
         # Make FSPS
-        subprocess.call("cd %s;make"%os.path.join(fspsDir,"src"), shell=True)
+        subprocess.call("cd %s;make" % os.path.join(fspsDir, "src"),
+                shell=True)
 
         # Gather all binaries built with FSPS
-        fspsSrcs = glob.glob(os.path.join(fspsDir,"src/*.o"))
+        fspsSrcs = glob.glob(os.path.join(fspsDir, "src/*.o"))
         oPaths = fspsSrcs
-        modPaths = glob.glob(os.path.join(fspsDir,"src/*.mod"))
+        modPaths = glob.glob(os.path.join(fspsDir, "src/*.mod"))
+        # Omit the objects of the command line programs
         filterNames = [os.path.join(fspsDir, 'src', n) for n in
-                ['simple.o','lesssimple.o','autosps.o']]
+                ['simple.o', 'lesssimple.o', 'autosps.o']]
         for n in filterNames:
             oPaths = [p for p in oPaths if n not in p]
 
         srcDir = "pysps/_fsps_src"
-        if not os.path.exists(srcDir): os.makedirs(srcDir)
-        copiedOPaths = []
+        if not os.path.exists(srcDir):
+            os.makedirs(srcDir)
         newModPaths = []
         for p in oPaths:
             basename = os.path.basename(p)
@@ -54,13 +57,17 @@ class BuildFSPS(Command):
             newPath = os.path.join("pysps", basename)
             newModPaths.append(newPath)
             shutil.copy(p, newPath)
-            oPaths = glob.glob(os.path.join(srcDir, "%.o"))
+        copiedoPaths = glob.glob(os.path.join(srcDir, "%.o"))
 
-        subprocess.call("cd pysps;f2py fsps.f90 -m fsps -h fsps.pyf --overwrite-signature",
-                shell=True)
+        # Build the f2py signature file
+        subprocess.call(
+            "cd pysps;f2py fsps.f90 -m fsps -h fsps.pyf --overwrite-signature",
+            shell=True)
 
+        # Compile the f2py module
         # apparently gnu95 implies gfortran
-        cmd = "cd pysps;f2py -c --fcompiler=gnu95 fsps.pyf fsps.f90 %s" % " ".join(oPaths)
+        cmd = "cd pysps;f2py -c --fcompiler=gnu95 fsps.pyf fsps.f90 %s" \
+                % " ".join(copiedoPaths)
         subprocess.call(cmd, shell=True)
 
         # Cleanup
