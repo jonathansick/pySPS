@@ -11,7 +11,7 @@ Installation
 
 pySPS requires FSPS to be installed separately. Some modules will require pymongo and pytables. pySPS itself can be installed by running:
 
-    python buildext.py
+    python setup.py build_fsps
     python setup.py develop
 
 You should then be able to `import pysps`
@@ -21,10 +21,9 @@ Documentation
 
 [Sphinx](http://sphinx.pocoo.org/) documentation can be built via
 
-    cd doc
-    make html
+    python setup.py make_sphinx
 
-and HTML documentation is readable from `doc/_build/html`.
+and HTML documentation is readable from `build/sphinx/html`.
 
 
 Contact
@@ -35,7 +34,7 @@ Contact Jonathan Sick (jsick@astro.queensu.ca) for questions and issues related 
 License
 -------
 
-Copyright 2011-2012 Jonathan Sick
+Copyright (c) 2011-2012 Jonathan Sick
 All rights reserved.
 
 Consult LICENSE.rst for licensing details.
