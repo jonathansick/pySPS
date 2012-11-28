@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # encoding: utf-8
-from setuptools import setup, Command
-from sphinx.setup_command import BuildDoc
 
 import os
 import shutil
 import glob
 import subprocess
+from setuptools import setup, Command
+from sphinx.setup_command import BuildDoc
 
-
+desc = open("README.md").read()
 dependencies = """
 sphinx
 numpy
@@ -83,8 +83,18 @@ setup(
     version=0.2,
     author='Jonathan Sick',
     author_email='jonathansick@mac.com',
+    url='https://github.com/jonathansick/pySPS',
     description='Interface to Flexible Stellar Population Synthesis package',
     license='BSD',
     install_requires=dependencies.split(),
-    cmdclass=cmdclass
+    cmdclass=cmdclass,
+    long_description=desc,
+    classifiers=[
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: BSD License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python",
+    ],
 )
