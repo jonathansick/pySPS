@@ -1,4 +1,7 @@
+#!/usr/bin/env python
+# encoding: utf-8
 """Basic Monte Carlo stellar population library."""
+
 import os
 import cPickle as pickle
 import numpy as np
