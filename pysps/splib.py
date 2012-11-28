@@ -1,7 +1,11 @@
-"""Generates input files for fspsq."""
+#!/usr/bin/env python
+# encoding: utf-8
+"""Building and querying a library of stellar population models in
+MongoDB/HDF5.
+"""
+
 import socket
 import os
-import subprocess
 import multiprocessing
 import datetime
 import cPickle as pickle
@@ -9,8 +13,7 @@ import cPickle as pickle
 import pytz
 import pymongo
 import numpy as np
-#import numpy.lib.recfunctions as recfunctions
-import tables # HDF5
+import tables  # HDF5
 import matplotlib.mlab as mlab
 
 from bson.binary import Binary
@@ -20,10 +23,10 @@ from sp_params import ParameterSet
 from sp_params import get_metallicity_LUT
 from sp_params import FILTER_LIST
 
-from parsers import MagParser
 from parsers import SpecParser
 
-import fsps # f2py wrapper to FSPS
+import fsps  # f2py wrapper to FSPS
+
 
 class FSPSLibrary(object):
     """For building/accessing a library of FSPS stellar population models.
@@ -76,7 +79,7 @@ class FSPSLibrary(object):
                 imf_type=imf_type, imf1=imf1, imf2=imf2, imf3=imf3,
                 vdmc=vdmc, mdave=mdave, dell=dell, delt=delt, sbss=sbss,
                 fbhb=fbhb, pagb=pagb)
-        nodeNames = [str(i) for i in xrange(1,nThreads+1)]
+        nodeNames = [str(i) for i in xrange(1, nThreads + 1)]
         if nThreads > 1:
             pool = multiprocessing.Pool(processes=nThreads)
             pool.map(queue_runner, nodeNames)
@@ -105,26 +108,28 @@ class FSPSLibrary(object):
         """Create an HDF5 table that combines outputs from models
         in the library.
         """
-        query.update({"compute_complete":True,
+        query.update({"compute_complete": True,
             "np_data": {"$exists": 1}})
-        docs = self.collection.find(query) # , limit=2
+        docs = self.collection.find(query)  # , limit=2
         print "working on %i docs to read" % docs.count()
         lut = get_metallicity_LUT(isocType, specType)
         # TODO need to generalize definition of columns. A user ought to
         # be able to use any pset columns, any set of mags, and the spectra
         #magNames = ['TMASS_J','TMASS_H','TMASS_Ks','MegaCam_u','MegaCam_g',
         #        'MegaCam_r','MegaCam_i','MegaCam_z','GALEX_NUV','GALEX_FUV']
-        magCols = [(s,np.float,) for (i,s,c) in FILTER_LIST]
+        magCols = [(s, np.float,) for (i, s, c) in FILTER_LIST]
         #magCols = [(s,np.float) for s in magNames]
-        psetCols = [('dust_type',np.int),('imf_type',np.int),('sfh',np.int),
-                ('tau',np.float),('const',np.float),('sf_start',np.float),
-                ('fburst',np.float),('tburst',np.float),('dust_tesc',np.float),
-                ('dust1',np.float),('dust2',np.float),('frac_nodust',np.float)]
-        sfhCols = [('age',np.float),('mass',np.float),('lbol',np.float),
-                ('sfr',np.float)]
-        miscCols = [('Z',np.float)] # metallicity, taken from zmet look-up-table
-        specCols = [('spec',np.float,SpecParser.nlambda(specType))]
-        allCols = psetCols+sfhCols+miscCols+magCols+specCols
+        psetCols = [('dust_type', np.int), ('imf_type', np.int),
+                ('sfh', np.int), ('tau', np.float), ('const', np.float),
+                ('sf_start', np.float), ('fburst', np.float),
+                ('tburst', np.float), ('dust_tesc', np.float),
+                ('dust1', np.float), ('dust2', np.float),
+                ('frac_nodust', np.float)]
+        sfhCols = [('age', np.float), ('mass', np.float), ('lbol', np.float),
+                ('sfr', np.float)]
+        miscCols = [('Z', np.float)]  # metallicity, taken from zmet LUT
+        specCols = [('spec', np.float, SpecParser.nlambda(specType))]
+        allCols = psetCols + sfhCols + miscCols + magCols + specCols
         tableDtype = np.dtype(allCols)
 
         if os.path.exists(outputPath) and clobber:
@@ -144,7 +149,7 @@ class FSPSLibrary(object):
             extraArrays = []
 
             zmet = doc['pset']['zmet']
-            Z = lut[zmet-1]
+            Z = lut[zmet - 1]
             Z = np.ones(nRows, dtype=np.float) * Z
             extraNames.append('Z')
             extraArrays.append(Z)
@@ -155,15 +160,10 @@ class FSPSLibrary(object):
                 extraArrays.append(pArray)
             npDataAll = mlab.rec_append_fields(npData, extraNames, extraArrays)
 
-            # Trim the recarray to just the desired fields
-            #npDataTrim = mlab.rec_keep_fields(npDataAll,
-            #    ['Z','tau','age','mass','lbol','sfr','TMASS_J','TMASS_H',
-            #    'TMASS_Ks','MegaCam_u','MegaCam_g','MegaCam_r','MegaCam_i',
-            #    'MegaCam_z','GALEX_NUV','GALEX_FUV'])
             # select row closest to the target age
             if tage is not None:
-                ageGyr = 10.**npDataAll['age'] / 10.**9
-                i = np.argmin((ageGyr - tage)**2)
+                ageGyr = 10. ** npDataAll['age'] / 10. ** 9
+                i = np.argmin((ageGyr - tage) ** 2)
                 row = np.atleast_1d(np.array(npDataAll[i], copy=True))
                 table.append(row)
             else:
@@ -182,9 +182,10 @@ class FSPSLibrary(object):
 
     @property
     def _get_table_def(self):
-        ccDtype = np.dtype([('c1',np.int),('c2',np.int),('xi',np.int),
-            ('yi',np.int),('ml',np.float)])
+        ccDtype = np.dtype([('c1', np.int), ('c2', np.int), ('xi', np.int),
+            ('yi', np.int), ('ml', np.float)])
         return ccDtype
+
 
 class QueueRunnerIsoSSP(object):
     """Executes a queue of FSPS models. Assumes SSPs share a common IMF
@@ -221,7 +222,7 @@ class QueueRunnerIsoSSP(object):
         """Executed in the pool mapping; looks for and computes models."""
         # print "hello"
         self.nodeName = nodeName
-        thisHost = socket.gethostname() # hostname of current process
+        thisHost = socket.gethostname()  # hostname of current process
         
         # Connect to the library in MongoDB
         connection = pymongo.Connection(host=self.dbhost, port=self.dbport)
@@ -251,16 +252,15 @@ class QueueRunnerIsoSSP(object):
                                     "queue_date": now,
                                     "compute_host": thisHost}},)
                 # print "doc", doc
-                if doc is None: break # no available models
+                if doc is None: break  # no available models
                 modelName = str(doc['_id'])
                 pset = ParameterSet(modelName, **doc['pset'])
                 psets.append(pset)
                 modelNames.append(pset.name)
-            if len(psets) == 0: break # empty job queue
+            if len(psets) == 0: break  # empty job queue
             # Startup a computation: write command file and start fspsq
             for pset in psets:
                 self._compute_model(pset)
-
 
     def _compute_model(self, pset):
         """Computes a model and inserts results into the Mongo collection."""
@@ -268,12 +268,12 @@ class QueueRunnerIsoSSP(object):
         nLambda = fsps.driver.get_n_lambda()
         nAges = fsps.driver.get_n_ages()
         fsps.driver.comp_sp(pset['dust_type'], pset['zmet'], pset['sfh'],
-                pset['tau'], pset['const'], pset['fburst'], pset['tburst'],
-                pset['dust_tesc'], pset['dust1'], pset['dust2'],
-                pset['dust_clumps'], pset['frac_nodust'], pset['dust_index'],
-                pset['mwr'], pset['wgp1'], pset['wgp2'], pset['wgp3'], 
-                pset['duste_gamma'], pset['duste_umin'], pset['duste_qpah'],
-                pset['tage'])
+            pset['tau'], pset['const'], pset['fburst'], pset['tburst'],
+            pset['dust_tesc'], pset['dust1'], pset['dust2'],
+            pset['dust_clumps'], pset['frac_nodust'], pset['dust_index'],
+            pset['mwr'], pset['wgp1'], pset['wgp2'], pset['wgp3'],
+            pset['duste_gamma'], pset['duste_umin'], pset['duste_qpah'],
+            pset['tage'])
         if pset['tage'] == 0.:
             # SFH over all ages is returned
             mags = fsps.driver.get_csp_mags(nBands, nAges)
@@ -285,7 +285,8 @@ class QueueRunnerIsoSSP(object):
             # the outputs from get_csp_mags, etc.
             mags = fsps.driver.get_csp_mags_at_age(1, nBands)
             specs = fsps.driver.get_csp_specs_at_age(1, nLambda)
-            age, mass, lbol, sfr, dust_mass = fsps.driver.get_csp_stats_at_age(1)
+            age, mass, lbol, sfr, dust_mass \
+                    = fsps.driver.get_csp_stats_at_age(1)
             age = np.atleast_1d(age)
             mass = np.atleast_1d(mass)
             lbol = np.atleast_1d(lbol)
@@ -306,10 +307,10 @@ class QueueRunnerIsoSSP(object):
            :func:`numpy.recfunctions.append_fields` can be applied here. But
            I can't get it to work.
         """
-        magDtype = [('age',np.float),('mass',np.float),('lbol',np.float),
-                ('sfr',np.float), ('dust_mass',np.float)]
-        magDtype += [(name,np.float) for (idx,name,comment) in FILTER_LIST]
-        dt = magDtype + [('spec',np.float,nLambda)]
+        magDtype = [('age', np.float), ('mass', np.float), ('lbol', np.float),
+                ('sfr', np.float), ('dust_mass', np.float)]
+        magDtype += [(name, np.float) for (idx, name, comment) in FILTER_LIST]
+        dt = magDtype + [('spec', np.float, nLambda)]
         nRows = len(age)
         allData = np.empty(nRows, dtype=dt)
         allData['age'] = age
@@ -318,18 +319,19 @@ class QueueRunnerIsoSSP(object):
         allData['sfr'] = sfr
         allData['dust_mass'] = dust_mass
         print "magData shape:", magData.shape
-        for (idx,name,comment) in FILTER_LIST:
-            print idx-1, name
-            allData[name] = magData[:,idx-1] # fortran indices start at 1
+        for (idx, name, comment) in FILTER_LIST:
+            print idx - 1, name
+            allData[name] = magData[:, idx - 1]  # fortran indices start at 1
         allData['spec'] = specData
         return allData
 
     def _insert_model(self, modelName, modelData):
         """docstring for _insert_model"""
-        self.collection.update({"_id": modelName}, {"$set": {"compute_complete": True}})
-        binData = Binary(pickle.dumps(modelData,-1))
         self.collection.update({"_id": modelName},
-                {"$set": {"np_data": {'_type': 'np.ndarray', 'data':binData}}})
+            {"$set": {"compute_complete": True}})
+        binData = Binary(pickle.dumps(modelData, -1))
+        self.collection.update({"_id": modelName},
+            {"$set": {"np_data": {'_type': 'np.ndarray', 'data': binData}}})
         # load data with pickle.load(doc['np_data']['data])
             
         # Using SON Manipulator:
@@ -343,32 +345,27 @@ class QueueRunnerIsoSSP(object):
 class NumpySONManipulator(SONManipulator):
     """Taken from Dan-FM's gist: https://gist.github.com/1143729"""
     def transform_incoming(self, value, collection):
-        if isinstance(value, (list,tuple,set)):
-            return [self.transform_incoming(item,collection) for item in value]
-        if isinstance(value,dict):
-            return dict((key,self.transform_incoming(item,collection))
-                                         for key,item in value.iteritems())
-        if isinstance(value,np.ndarray):
-            return {'_type': 'np.ndarray', 
-                    'data': Binary(pickle.dumps(value,-1))}
+        if isinstance(value, (list, tuple, set)):
+            return [self.transform_incoming(item, collection)
+                    for item in value]
+        if isinstance(value, dict):
+            return dict((key, self.transform_incoming(item, collection))
+                                         for key, item in value.iteritems())
+        if isinstance(value, np.ndarray):
+            return {'_type': 'np.ndarray',
+                    'data': Binary(pickle.dumps(value, -1))}
         return value
 
     def transform_outgoing(self, son, collection):
-        if isinstance(son,(list,tuple,set)):
-            return [self.transform_outgoing(value,collection) for value in son]
-        if isinstance(son,dict):
+        if isinstance(son, (list, tuple, set)):
+            return [self.transform_outgoing(value, collection)
+                    for value in son]
+        if isinstance(son, dict):
             if son.get('_type') == 'np.ndarray':
                 return pickle.loads(son.get('data'))
-            return dict((key,self.transform_outgoing(value,collection))
-                                         for key,value in son.iteritems())
+            return dict((key, self.transform_outgoing(value, collection))
+                                         for key, value in son.iteritems())
         return son
-
-class SPTable(object):
-    """A reduction of stellar populations into a HDF5 table."""
-    def __init__(self, arg):
-        super(SPTable, self).__init__()
-        self.arg = arg
-    
 
 
 if __name__ == '__main__':
