@@ -5,11 +5,8 @@ For building stellar population libraries at a single observed age.
 
 History
 -------
-2011-10-02 - Created by 
-
+2011-10-02 - Created by Jonathan Sick
 """
-
-__all__ = ['']
 
 import os
 import socket
@@ -22,7 +19,7 @@ import subprocess
 import pymongo
 import numpy as np
 
-import fspsq
+import splib
 from fspsq import FSPSLibrary
 from fspsq import ParameterSet
 from fspsq import _make_shell_command

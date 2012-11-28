@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # encoding: utf-8
 """
 General parameters for FSPS, including classes for ParameterSets, filter
@@ -7,27 +6,28 @@ lists, and metallicity look-up tables.
 History
 -------
 2011-12-30 - Created by Jonathan Sick
-
 """
+
 import bson
 
+
 class ParameterSet(object):
-    """An input parameter set for a FSPS model run."""
+    """Input parameter set for a FSPS model run."""
     def __init__(self, name, **kwargs):
         if name is None:
             self.name = str(bson.objectid.ObjectId())
         else:
-            self.name = str(name) # name of this model
+            self.name = str(name)  # name of this model
         # Default values
-        self.p = {"compute_vega_mags":0, "dust_type":0, "imf_type":0,
-                "isoc_type":'pdva', "redshift_colors":0, "time_res_incr":2,
-                "zred":0., "zmet":1, "sfh":0, "tau":1., "const":0.,
-                "sf_start":0.,"tage":0., "fburst":0., "tburst":0., "imf1":1.3,
-                "imf2":2.3, "imf3":2.3, "vdmc":0.08, "mdave":0.5,
-                "dust_tesc":7., "dust1":0., "dust2":0., "dust_clumps":-99.,
-                "frac_nodust":0., "dust_index":-0.7, "mwr":3.1,
-                "uvb":1., "wgp1":1, "wgp2":1, "wgp3":0, "dell":0.,
-                "delt":0., "sbss":0., "fbhb":0, "pagb":1.,
+        self.p = {"compute_vega_mags": 0, "dust_type": 0, "imf_type": 0,
+                "isoc_type": 'pdva', "redshift_colors": 0, "time_res_incr": 2,
+                "zred": 0., "zmet": 1, "sfh": 0, "tau": 1., "const": 0.,
+                "sf_start": 0., "tage": 0., "fburst": 0., "tburst": 0.,
+                "imf1": 1.3, "imf2": 2.3, "imf3": 2.3, "vdmc": 0.08,
+                "mdave": 0.5, "dust_tesc": 7., "dust1": 0., "dust2": 0.,
+                "dust_clumps": -99., "frac_nodust": 0., "dust_index": -0.7,
+                "mwr": 3.1, "uvb": 1., "wgp1": 1, "wgp2": 1, "wgp3": 0,
+                "dell": 0., "delt": 0., "sbss": 0., "fbhb": 0, "pagb": 1.,
                 "duste_gamma": 0.01, "duste_umin": 1.0, "duste_qpah": 3.5}
         self.knownParameters = self.p.keys()
         # Update values with user's arguments
@@ -45,17 +45,18 @@ class ParameterSet(object):
         .. note:: Deprecated with the f2py wrapper.
         """
         # These are pset variables, (aside from sfh)
-        dt = [("zred","%.2f"),("zmet","%02i"),("tau","%.10f"),("const","%.4f"),
-                ("sf_start","%.2f"),("tage","%.4f"),("fburst","%.4f"),
-                ("tburst","%.4f"),("imf1","%.2f"),("imf2","%.2f"),
-                ("imf3","%.2f"),("vdmc","%.2f"),("mdave","%.1f"),
-                ("dust_tesc","%.2f"),("dust1","%.6f"),("dust2","%.6f"),
-                ("dust_clumps","%.1f"),("frac_nodust","%.2f"),
-                ("dust_index","%.2f"),("mwr","%.2f"),("uvb","%.2f"),
-                ("wgp1","%i"),("wgp2","%i"),("wgp3","%i"),("dell","%.2f"),
-                ("delt","%.2f"),("sbss","%.2f"),("fbhb","%.2f"),
-                ("pagb","%.2f")]
-        cmd = str(self.name) + " " + " ".join([s % self.p[k] for (k,s) in dt])
+        dt = [("zred", "%.2f"), ("zmet", "%02i"), ("tau", "%.10f"),
+                ("const", "%.4f"), ("sf_start", "%.2f"), ("tage", "%.4f"),
+                ("fburst", "%.4f"), ("tburst", "%.4f"), ("imf1", "%.2f"),
+                ("imf2", "%.2f"), ("imf3", "%.2f"), ("vdmc", "%.2f"),
+                ("mdave", "%.1f"), ("dust_tesc", "%.2f"), ("dust1", "%.6f"),
+                ("dust2", "%.6f"), ("dust_clumps", "%.1f"),
+                ("frac_nodust", "%.2f"), ("dust_index", "%.2f"),
+                ("mwr", "%.2f"), ("uvb", "%.2f"), ("wgp1", "%i"),
+                ("wgp2", "%i"), ("wgp3", "%i"), ("dell", "%.2f"),
+                ("delt", "%.2f"), ("sbss", "%.2f"), ("fbhb", "%.2f"),
+                ("pagb", "%.2f")]
+        cmd = str(self.name) + " " + " ".join([s % self.p[k] for (k, s) in dt])
         return cmd
     
     def get_doc(self):
@@ -72,7 +73,7 @@ class ParameterSet(object):
             self.p['tau'], self.p['const'], self.p['fburst'], self.p['tburst'],
             self.p['dust_tesc'], self.p['dust1'], self.p['dust2'],
             self.p['dust_clumps'], self.p['frac_nodust'], self.p['dust_index'],
-            self.p['mwr'], self.p['wgp1'], self.p['wgp2'], self.p['wgp3'], 
+            self.p['mwr'], self.p['wgp1'], self.p['wgp2'], self.p['wgp3'],
             self.p['duste_gamma'], self.p['duste_umin'], self.p['duste_qpah'],
             self.p['tage'])
 
@@ -159,9 +160,10 @@ FILTER_LIST = [(1,'V','Johnson V (from Bessell 1990 via M. Blanton)  - this defi
         (81,"Bessell_LP","Bessell & Brett (1988) L' band"),
         (82,"Bessell_M","Bessell & Brett (1988) M band")]
 
+
 def get_metallicity_LUT(isocType, specType):
     """docstring for as_metallicity"""
-    if isocType=="pdva" and specType=="basel":
-        return (0.0002, 0.0003, 0.0004, 0.0005,0.0006,0.0008,0.0010,
-            0.0012,0.0016,0.0020,0.0025,0.0031,0.0039,0.0049,0.0061,
-            0.0077,0.0096,0.0120,0.0150,0.0190,0.0240,0.0300)
+    if isocType == "pdva" and specType == "basel":
+        return (0.0002, 0.0003, 0.0004, 0.0005, 0.0006, 0.0008, 0.0010,
+            0.0012, 0.0016, 0.0020, 0.0025, 0.0031, 0.0039, 0.0049, 0.0061,
+            0.0077, 0.0096, 0.0120, 0.0150, 0.0190, 0.0240, 0.0300)

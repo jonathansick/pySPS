@@ -86,6 +86,7 @@ FILTER_LIST = [(1,'V','Johnson V (from Bessell 1990 via M. Blanton)  - this defi
         (82,"Bessell_LP","Bessell & Brett (1988) L' band"),
         (83,"Bessell_M","Bessell & Brett (1988) M band")]
 
+
 class FilterDB(object):
     """docstring for Filters"""
     def __init__(self):
@@ -116,7 +117,7 @@ class FilterDB(object):
         """Get the index for this filter"""
         for i, rec in enumerate(FILTER_LIST):
             if rec[1] == key:
-                return i+1
+                return i + 1
     
     def read_filters(self, dataPath):
         """Called upon instantiation to parse $SPS_HOME/data/allfilters.dat"""
@@ -126,12 +127,12 @@ class FilterDB(object):
         wave = []
         band = []
         for line in f:
-            if ("#" in line) and (index>0):
+            if ("#" in line) and (index > 0):
                 filterDB[index] = self._package_filter(index, wave, band)
                 index += 1
                 wave = []
                 band = []
-            elif ("#" in line) and (index==0):
+            elif ("#" in line) and (index == 0):
                 index += 1
                 continue
             else:
@@ -143,13 +144,14 @@ class FilterDB(object):
         return filterDB
     
     def _package_filter(self, index, wave, band):
-        """Create dictionary document for each filter, used by `read_filters()`"""
+        """Create dictionary document for each filter, used by
+        :meth:`read_filters()`.
+        """
         doc = {}
-        filterInfo = FILTER_LIST[index-1]
+        filterInfo = FILTER_LIST[index - 1]
         doc['index'] = filterInfo[0]
         doc['key'] = filterInfo[1]
         doc['comment'] = filterInfo[2]
         doc['wave'] = np.array(wave)
         doc['band'] = np.array(band)
         return doc
-        
